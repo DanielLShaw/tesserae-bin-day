@@ -162,11 +162,15 @@
           "label": "Colour"
         },
         {
+          "value": "eink",
+          "label": "Colour for e-ink"
+        },
+        {
           "value": "mono",
           "label": "Black & white"
         }
       ],
-      "help": "Black & white draws refuse solid, garden hatched and other bins outlined, for mono panels. Auto switches to it on black and white themes such as Paper and Newsprint."
+      "help": "Colour suits screens. Colour for e-ink uses the exact inks of colour e-ink panels such as the reTerminal E1002, so bins print as solid ink. Black & white draws each bin solid, outlined or patterned, for mono panels. Auto uses Colour, or Black & white on black and white themes such as Paper and Newsprint."
     }
   ],
   "updates": {

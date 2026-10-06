@@ -20,5 +20,8 @@ def fetch(options, settings, *, ctx):
     if core is None:
         return {"error": MISSING_CORE}
     return core.collections(
-        options.get("source"), options.get("cutoff"), fresh=bool(ctx.get("fresh"))
+        options.get("source"),
+        options.get("cutoff"),
+        fresh=bool(ctx.get("fresh")),
+        colours=options.get("colours"),
     )

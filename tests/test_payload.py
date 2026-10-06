@@ -89,3 +89,19 @@ def test_fixed_rule_payload_applies_title_mappings():
 )
 def test_find_schedule_by_cell_source(source, found):
     assert find_schedule(CONFIG, source) == found
+
+
+def test_payload_uses_the_e_ink_colour_set_when_asked():
+    green = {
+        "id": "garden",
+        "label": "Green",
+        "icon": "leaf",
+        "body_colour": "green",
+        "lid_colour": "green",
+    }
+    events = [(date(2026, 10, 7), green)]
+    screen = build_payload(events, TUE_8AM, CUTOFF)["days"][0]["streams"][0]
+    eink = build_payload(events, TUE_8AM, CUTOFF, eink=True)["days"][0]["streams"][0]
+    assert eink["body_colour"] == "#00ff00"
+    assert eink["icon_colour"] == "#ffffff"  # forest green ink prints dark
+    assert screen["body_colour"] != "#00ff00"

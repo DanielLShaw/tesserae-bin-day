@@ -201,7 +201,10 @@ def shoot(stage, scenarios, views, themes, e6=False):
                 opts = quote(json.dumps(scenario.options))
                 for theme in themes:
                     for view in views:
-                        page.goto(f"{base}&{render_query(view)}&theme={quote(theme)}&opts={opts}")
+                        shown_theme = scenario.theme or theme
+                        page.goto(
+                            f"{base}&{render_query(view)}&theme={quote(shown_theme)}&opts={opts}"
+                        )
                         page.wait_for_function("window.__tesseraeComposed === true")
                         page.evaluate("document.fonts.ready")
                         shot = folder / shot_name(view, theme)

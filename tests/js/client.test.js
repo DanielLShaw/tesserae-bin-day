@@ -433,6 +433,10 @@ describe("mono rendering", () => {
     assert.ok(!isMonoHtml(drawThemed("sm", { days: [TOMORROW] }, { colours: "colour" }, PAPER)));
   });
 
+  test("Colour for e-ink keeps the bin colours even on a black and white theme", () => {
+    assert.ok(!isMonoHtml(drawThemed("sm", { days: [TOMORROW] }, { colours: "eink" }, PAPER)));
+  });
+
   test("with no theme to read, Auto renders in colour", () => {
     assert.ok(!isMonoHtml(draw("sm", { days: [TOMORROW] })));
   });

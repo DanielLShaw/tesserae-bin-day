@@ -1,10 +1,12 @@
 /* Bin Day widget. Sizes scale with the cell (cqmin), not media queries;
    no motion. Text and surfaces use Spectra tokens. Bin fills come from
-   the data (--body, --ink); the black outline keeps white and light bins
-   visible on light surfaces. */
+   the data (--body, --ink); the outline, in the theme's text colour, keeps
+   every bin visible against the surface. */
 
 .bin-day {
-  --bin-outline: #000000; /* identity: bin outlines are always black */
+  /* The outline keeps light bins visible on light surfaces and dark bins on
+     dark ones, so it follows the theme's text colour. */
+  --bin-outline: var(--text-primary);
   --chip: clamp(24px, 30cqmin, 96px);
 }
 

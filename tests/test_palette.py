@@ -51,25 +51,41 @@ def test_unknown_colour_falls_back_to_the_grey_fill():
         ("#ffffff", "#000000"),
         ("#1f4fd1", "#ffffff"),
         ("#f5c400", "#000000"),
-        # Panel inks go by how they print: green and red print dark.
-        ("#00ff00", "#ffffff"),
-        ("#ff0000", "#ffffff"),
-        ("#0000ff", "#ffffff"),
-        ("#ffff00", "#000000"),
+        ("#00ff00", "#000000"),
     ],
 )
 def test_icon_ink_is_white_on_dark_fills_and_black_on_light(fill, ink):
     assert icon_ink(fill) == ink
 
 
+@pytest.mark.parametrize(
+    ("fill", "ink"),
+    [
+        ("#00ff00", "#ffffff"),
+        ("#ff0000", "#ffffff"),
+        ("#0000ff", "#ffffff"),
+        ("#ffff00", "#000000"),
+    ],
+)
+def test_e_ink_icons_go_by_how_each_ink_prints(fill, ink):
+    # Nominal green #00ff00 is bright, but the ink prints dark forest green.
+    assert icon_ink(fill, eink=True) == ink
+
+
 # The six Spectra 6 ink values; fills of exactly these print as solid ink.
 PANEL_INKS = {"#000000", "#ffffff", "#ffff00", "#ff0000", "#0000ff", "#00ff00"}
 
 
-@pytest.mark.parametrize("name", [n for n in PALETTE_NAMES if colour_hex(n) not in PANEL_INKS])
-def test_icon_on_every_other_palette_fill_meets_large_graphic_contrast(name):
+@pytest.mark.parametrize("name", PALETTE_NAMES)
+def test_icon_on_every_screen_colour_meets_large_graphic_contrast(name):
     fill = colour_hex(name)
     assert wcag_contrast(fill, icon_ink(fill)) >= 3
+
+
+@pytest.mark.parametrize("name", ["blue", "green", "red", "yellow"])
+def test_screen_colours_are_softer_than_the_panel_inks(name):
+    assert colour_hex(name) not in PANEL_INKS
+    assert colour_hex(name) != colour_hex(name, eink=True)
 
 
 @pytest.mark.skipif(not HAVE_TESSERAE, reason="needs a Tesserae checkout")
@@ -83,7 +99,7 @@ def test_icon_on_each_ink_meets_large_graphic_contrast_as_printed(ink):
             WAVESHARE_E6_PALETTE, WAVESHARE_E6_CALIBRATED_PALETTE, strict=True
         )
     }
-    assert wcag_contrast(printed[ink], icon_ink(ink)) >= 3
+    assert wcag_contrast(printed[ink], icon_ink(ink, eink=True)) >= 3
 
 
 def test_display_stream_converts_colours_and_adds_icon_colour():
@@ -185,8 +201,15 @@ class TestMonoFill:
 
 @pytest.mark.skipif(not HAVE_TESSERAE, reason="needs a Tesserae checkout")
 @pytest.mark.parametrize("name", ["black", "white", "blue", "green", "red", "yellow", "orange"])
-def test_colours_with_a_matching_panel_ink_use_it_exactly_so_they_print_solid(name):
+def test_e_ink_colours_with_a_matching_panel_ink_use_it_exactly(name):
     from app.quantizer import SPECTRA_6_PALETTE
 
     inks = {f"#{r:02x}{g:02x}{b:02x}" for r, g, b in SPECTRA_6_PALETTE}
-    assert colour_hex(name) in inks
+    assert colour_hex(name, eink=True) in inks
+
+
+def test_display_stream_uses_the_e_ink_set_when_asked():
+    stream = {"id": "recycling", "label": "Recycling", "icon": "recycle"}
+    blue = {**stream, "body_colour": "blue", "lid_colour": "blue"}
+    assert display_stream(blue, eink=True)["body_colour"] == "#0000ff"
+    assert display_stream(blue)["body_colour"] not in PANEL_INKS

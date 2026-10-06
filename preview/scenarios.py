@@ -51,6 +51,7 @@ class Scenario:
     cutoff: str = "10:00"
     colours: str = "auto"
     schedule_deleted: bool = False
+    theme: str | None = None  # render in this theme whatever the run's
 
     @property
     def config(self):
@@ -71,6 +72,24 @@ SCENARIOS = [
         _at(6, 8),
         [(1, ["trash", "leaf"]), (6, ["recycle"])],
         mappings=LIVERPOOL_MAPPINGS,
+    ),
+    Scenario(
+        "dark-mode",
+        "The mockup data in the dark theme.",
+        LIVERPOOL,
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        mappings=LIVERPOOL_MAPPINGS,
+        theme="dark",
+    ),
+    Scenario(
+        "eink-colours",
+        "The mockup data with Colours set to Colour for e-ink: exact panel inks.",
+        LIVERPOOL,
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        mappings=LIVERPOOL_MAPPINGS,
+        colours="eink",
     ),
     Scenario(
         "today",

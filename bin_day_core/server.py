@@ -151,7 +151,7 @@ def _calendar_missing(ha, entity_id, err):
     return False
 
 
-def _calendar_payload(entity_id, cutoff, fresh):
+def _calendar_payload(entity_id, cutoff, fresh, eink):
     """Payload from a Home Assistant calendar. Answers are cached for an hour;
     if HA fails, a cached answer up to a day old is used instead."""
     ha = _ha_core()
@@ -180,17 +180,18 @@ def _calendar_payload(entity_id, cutoff, fresh):
         else:
             _write_json(_cache_path(entity_id), {"fetched_at": now.isoformat(), "events": events})
     mappings = load_config()["mappings"]
-    return logic.calendar_payload(events, mappings, now, logic.parse_cutoff(cutoff))
+    return logic.calendar_payload(events, mappings, now, logic.parse_cutoff(cutoff), eink)
 
 
-def collections(source, cutoff, fresh=False):
-    """The bin_day payload for a cell's ``source`` and ``cutoff`` options, or
-    ``{"error": ...}`` for the cell's error tile. ``fresh`` skips the Home
-    Assistant cache. Never raises."""
+def collections(source, cutoff, fresh=False, colours=None):
+    """The bin_day payload for a cell's ``source``, ``cutoff`` and ``colours``
+    options, or ``{"error": ...}`` for the cell's error tile. ``fresh`` skips
+    the Home Assistant cache. Never raises."""
+    eink = colours == "eink"
     if not source:
         return {"error": "Choose a bin schedule or calendar in this cell's Source option."}
     if source.startswith(CALENDAR_PREFIX):
-        return _calendar_payload(source, cutoff, fresh)
+        return _calendar_payload(source, cutoff, fresh, eink)
     config = load_config()
     schedule = logic.find_schedule(config, source)
     if schedule is None:
@@ -199,7 +200,7 @@ def collections(source, cutoff, fresh=False):
         }
     try:
         return logic.fixed_rule_payload(
-            schedule, config["mappings"], _now(), logic.parse_cutoff(cutoff)
+            schedule, config["mappings"], _now(), logic.parse_cutoff(cutoff), eink
         )
     except ValueError as err:
         return {"error": f"Bin schedule '{schedule['name']}' needs fixing in Bin Day Core: {err}"}
@@ -209,7 +210,7 @@ ICON_CHOICES = [("", "Automatic")] + [
     (icon, material.capitalize()) for material, (icon, _) in logic.resolve.MATERIAL_STYLES.items()
 ]
 COLOUR_CHOICES = [("", "Automatic")] + [
-    (name, name.replace("_", " ").capitalize()) for name in logic.palette.PALETTE
+    (name, name.replace("_", " ").capitalize()) for name in logic.palette.SCREEN_PALETTE
 ]
 
 

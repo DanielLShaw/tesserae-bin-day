@@ -147,6 +147,7 @@ Renders the widget in every scenario in `preview/scenarios.py` at every size
 screenshots/                 gitignored, always the latest run
   index.html                 contact sheet: one row per scenario
   next-week/xs.png ... lg.png
+  dark-mode/  eink-colours/
   today/  after-cutoff/  colour-names/  busy-day/  busy-second-day/
   overflow/  overflow-second-day/  black-and-white/  palette-dark/  palette-light/
   empty/  error/

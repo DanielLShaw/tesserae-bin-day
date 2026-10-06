@@ -54,7 +54,7 @@ def events_by_date(events, tz):
     return found
 
 
-def calendar_payload(events, mappings, now, cutoff):
+def calendar_payload(events, mappings, now, cutoff, eink=False):
     """The cell payload for HA calendar ``events`` as seen at ``now``. Titles
     the user has hidden are dropped."""
     return build_payload(
@@ -65,6 +65,7 @@ def calendar_payload(events, mappings, now, cutoff):
         ],
         now,
         cutoff,
+        eink,
     )
 
 

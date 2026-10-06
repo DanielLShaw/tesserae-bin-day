@@ -96,7 +96,7 @@ function themeAccents(shadow) {
 
 function isMono(shadow, options) {
   if (options?.colours === "mono") return true;
-  if (options?.colours === "colour") return false;
+  if (options?.colours === "colour" || options?.colours === "eink") return false;
   return isMonoPalette(themeAccents(shadow));
 }
 

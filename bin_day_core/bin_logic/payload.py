@@ -15,21 +15,22 @@ from .palette import display_stream
 from .schedule import fixed_rule_events
 
 
-def build_payload(events, now, cutoff):
-    """Payload for ``(date, stream)`` events as seen at ``now``."""
+def build_payload(events, now, cutoff, eink=False):
+    """Payload for ``(date, stream)`` events as seen at ``now``, coloured from
+    the screen set or (``eink``) the e-ink set."""
     days = collection_days(events, now, cutoff)
     for day in days:
-        day["streams"] = [display_stream(stream) for stream in day["streams"]]
+        day["streams"] = [display_stream(stream, eink) for stream in day["streams"]]
     return {"days": days, "next_change_at": next_change_at(now, cutoff, days).isoformat()}
 
 
-def fixed_rule_payload(schedule, mappings, now, cutoff):
+def fixed_rule_payload(schedule, mappings, now, cutoff, eink=False):
     """Payload for a fixed-rule schedule. Raises ValueError for a bad rule."""
     today = now.date()
     events = fixed_rule_events(
         schedule["streams"], today, today + timedelta(days=WINDOW_DAYS), mappings
     )
-    return build_payload(events, now, cutoff)
+    return build_payload(events, now, cutoff, eink)
 
 
 def find_schedule(config, source):

@@ -96,6 +96,13 @@ class TestFetch:
         data = cell_data(client, source="schedule:home01")
         assert data["days"][0]["streams"][0]["label"] == "General waste"
 
+    def test_colour_for_e_ink_option_sends_exact_ink_colours(self, client, save):
+        save(HOME)
+        eink = cell_data(client, source="schedule:home01", colours="eink")
+        screen = cell_data(client, source="schedule:home01", colours="colour")
+        assert eink["days"][0]["streams"][0]["body_colour"] == "#000000"
+        assert screen["days"][0]["streams"][0]["body_colour"] != "#000000"
+
     def test_no_source_chosen_asks_for_one(self, client, save, core):
         save(HOME)
         assert cell_data(client)["error"].startswith("Choose a bin schedule")

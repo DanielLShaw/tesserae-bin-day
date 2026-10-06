@@ -1,2 +1,8 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Keep the release tarball to plugin folders only (the installer rejects
+# any root directory without a plugin.json).
+tests/ export-ignore
+preview/ export-ignore
+.github/ export-ignore

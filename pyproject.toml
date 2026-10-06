@@ -1,0 +1,45 @@
+# Test and lint configuration only. This repo ships plugin folders, not an
+# installable package: Tesserae loads `bin_day/` and `bin_day_core/` by
+# dropping them into its plugins directory.
+#
+# Non-plugin directories (tests/, preview/) are export-ignored in
+# .gitattributes because the marketplace installer refuses a bundle tarball
+# with any root directory that lacks a plugin.json.
+
+[project]
+name = "tesserae-bin-day"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Repo root on sys.path so tests can import bin_day_core.bin_logic as a
+# namespace package without the plugin folders becoming real packages.
+pythonpath = ["."]
+addopts = "-ra --strict-markers --import-mode=importlib --cov --cov-report=term-missing"
+
+[tool.coverage.run]
+branch = true
+source = ["bin_day_core"]  # add "bin_day" once that plugin has Python code
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

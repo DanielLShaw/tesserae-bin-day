@@ -88,10 +88,11 @@
     <p class="field-help">Bin names are matched to an icon and colour automatically (colour words like
       "brown", then words like "recycling" or "garden"). Add a mapping when a name needs help, for
       example Liverpool's "Green" bin to the garden icon. A mapping matches a whole name, or whole
-      words within one, ignoring case.</p>
+      words within one, ignoring case. Tick Hide for a collection you don't want shown at all, such as
+      a garden waste bin you don't have.</p>
     <table class="table">
       <thead>
-        <tr><th>Name contains</th><th>Show as</th><th>Icon</th><th>Bin colour</th><th>Lid colour</th><th>Remove</th></tr>
+        <tr><th>Name contains</th><th>Show as</th><th>Icon</th><th>Bin colour</th><th>Lid colour</th><th>Hide</th><th>Remove</th></tr>
       </thead>
       <tbody>
         {% for mapping in mappings %}
@@ -100,6 +101,7 @@
           <td><input type="text" name="{{ m }}-match" value="{{ mapping.match }}" aria-label="Name contains" placeholder="Green"></td>
           <td><input type="text" name="{{ m }}-label" value="{{ mapping.label }}" aria-label="Show as" placeholder="(unchanged)"></td>
           {{ style_cells(m, mapping) }}
+          <td><input type="checkbox" name="{{ m }}-hide" aria-label="Hide {{ mapping.match or 'this bin' }}"{% if mapping.hide %} checked{% endif %}></td>
           <td>{% if not loop.last %}<input type="checkbox" name="{{ m }}-delete" aria-label="Remove {{ mapping.match }}">{% endif %}</td>
         </tr>
         {% endfor %}

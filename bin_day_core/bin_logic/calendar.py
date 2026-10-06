@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime, time, timedelta
 
 from .days import WINDOW_DAYS
 from .payload import build_payload
-from .resolve import clean_text, resolve_stream
+from .resolve import clean_text, is_hidden, resolve_stream
 
 # Days to ask HA for: one more than the window shows, so a cached answer up
 # to a day old still covers today to today + WINDOW_DAYS.
@@ -55,11 +55,13 @@ def events_by_date(events, tz):
 
 
 def calendar_payload(events, mappings, now, cutoff):
-    """The cell payload for HA calendar ``events`` as seen at ``now``."""
+    """The cell payload for HA calendar ``events`` as seen at ``now``. Titles
+    the user has hidden are dropped."""
     return build_payload(
         [
             (day, resolve_stream(title, mappings))
             for day, title in events_by_date(events, now.tzinfo)
+            if not is_hidden(title, mappings)
         ],
         now,
         cutoff,

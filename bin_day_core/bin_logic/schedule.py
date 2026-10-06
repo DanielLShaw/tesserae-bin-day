@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 
-from .resolve import clean_text, resolve_stream
+from .resolve import clean_text, is_hidden, resolve_stream
 
 MAX_EVERY_WEEKS = 8
 
@@ -26,10 +26,13 @@ def occurrences(first, every_weeks, start, end):
 def fixed_rule_events(streams, start, end, mappings=()):
     """``(date, stream)`` events for a fixed-rule schedule's streams within
     ``start``..``end``. A stream's own icon and colours layer over any title
-    mapping. Raises ValueError naming the stream if its rule is invalid."""
+    mapping, and streams the user has hidden are left out. Raises ValueError
+    naming the stream if its rule is invalid."""
     events = []
     for config in streams:
         label = clean_text(config.get("label"))
+        if is_hidden(label, mappings):
+            continue
         try:
             first = date.fromisoformat(config.get("first_date"))
             dates = occurrences(first, config.get("every_weeks"), start, end)

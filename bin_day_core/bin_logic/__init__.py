@@ -11,7 +11,7 @@ from .config import parse_admin_form, source_choices
 from .days import collection_days, next_change_at, parse_cutoff
 from .palette import colour_hex, display_stream, icon_ink
 from .payload import build_payload, find_schedule, fixed_rule_payload
-from .resolve import resolve_stream
+from .resolve import is_hidden, resolve_stream
 from .schedule import fixed_rule_events, occurrences
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
     "find_schedule",
     "fixed_rule_events",
     "fixed_rule_payload",
+    "is_hidden",
     "icon_ink",
     "next_change_at",
     "occurrences",

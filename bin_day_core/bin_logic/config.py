@@ -2,7 +2,7 @@
 
 Stored shape::
 
-    {"mappings": [{match, label, icon, body_colour, lid_colour}],
+    {"mappings": [{match, label, icon, body_colour, lid_colour, hide}],
      "schedules": [{id, name, streams: [{label, first_date, every_weeks,
                                          icon, body_colour, lid_colour}]}]}
 
@@ -83,7 +83,7 @@ def parse_admin_form(form, new_id):
         prefix = f"mappings-{n}"
         row = _row(form, prefix, MAPPING_FIELDS)
         if row["match"] and not _deleted(form, prefix):
-            mappings.append(row)
+            mappings.append({**row, "hide": bool(form.get(f"{prefix}-hide"))})
     schedules = []
     for position, n in enumerate(_indices(form, "schedules"), start=1):
         prefix = f"schedules-{n}"

@@ -164,3 +164,9 @@ def resolve_stream(title, mappings=(), overrides=None):
         "body_colour": body,
         "lid_colour": _colour(mapping.get("lid_colour")) or body,
     }
+
+
+def is_hidden(title, mappings):
+    """True when the user mapping for ``title``, the one that would style it,
+    has Hide ticked: that collection is left off the widget entirely."""
+    return _find_mapping(title.strip(), mappings).get("hide") is True

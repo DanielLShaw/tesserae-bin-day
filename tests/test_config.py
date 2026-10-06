@@ -46,8 +46,14 @@ class TestMappings:
                 "icon": "leaf",
                 "body_colour": "",
                 "lid_colour": "black",
+                "hide": False,
             }
         ]
+
+    def test_hide_checkbox_is_stored_as_true(self):
+        form = {"mappings-0-match": "Green", "mappings-0-hide": "on"}
+        [mapping] = parse_admin_form(form, ids())[0]["mappings"]
+        assert mapping["hide"] is True
 
     def test_rows_without_match_text_are_skipped(self):
         form = {"mappings-0-match": "", "mappings-0-label": "Ignored"}

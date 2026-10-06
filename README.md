@@ -87,7 +87,7 @@ node --check bin_day/client.js
 
 | Tests | Covers |
 | --- | --- |
-| `test_resolve.py` | Event title to icon and colours: user mappings, colour words, material keywords, fallback; Liverpool and Stockport titles |
+| `test_resolve.py` | Event title to icon and colours: user mappings, colour words, material keywords, fallback; Liverpool and Stockport titles; hiding a title |
 | `test_schedule.py` | Fixed-rule dates: 1 to 8 weekly cycles and their phase, future start, year boundary, clock changes |
 | `test_collections.py` | The 0 to 7 day window, the cutoff time, same-day merge, de-duplication, the `next_change_at` refresh hint |
 | `test_palette.py` | Colour names to hex, and a black or white icon that contrasts with each fill |

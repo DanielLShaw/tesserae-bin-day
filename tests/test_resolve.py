@@ -5,7 +5,7 @@ Colours are palette names here; hex conversion is a separate step.
 
 import pytest
 
-from bin_day_core.bin_logic import resolve_stream
+from bin_day_core.bin_logic import is_hidden, resolve_stream
 
 REFUSE = ("refuse", "trash", "black")
 RECYCLING = ("recycling", "recycle", "blue")
@@ -238,3 +238,26 @@ def test_unknown_title_falls_back_to_grey_with_no_icon_and_raw_label():
         "body_colour": "grey",
         "lid_colour": "grey",
     }
+
+
+class TestHiding:
+    @pytest.mark.parametrize(
+        ("title", "mappings", "hidden"),
+        [
+            ("Green", [{"match": "Green", "hide": True}], True),
+            ("green", [{"match": "Green", "hide": True}], True),
+            ("Green waste", [{"match": "Green", "hide": True}], True),
+            ("Greenwich", [{"match": "Green", "hide": True}], False),
+            ("Green", [{"match": "Green", "icon": "leaf"}], False),
+            ("Green", [{"match": "Green", "hide": False}], False),
+            ("Refuse", [{"match": "Green", "hide": True}], False),
+            ("Green", [], False),
+        ],
+    )
+    def test_a_title_is_hidden_when_its_mapping_says_so(self, title, mappings, hidden):
+        assert is_hidden(title, mappings) is hidden
+
+    def test_the_mapping_that_styles_a_title_also_decides_hiding(self):
+        # The exact "Green bin" mapping wins over the "Green" contains match.
+        mappings = [{"match": "Green", "hide": True}, {"match": "Green bin", "icon": "leaf"}]
+        assert is_hidden("Green bin", mappings) is False

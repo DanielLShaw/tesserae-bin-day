@@ -142,3 +142,32 @@ def test_custom_values_not_in_the_dropdowns_are_kept_selected(client, stored):
     html = client.get(INDEX).get_data(as_text=True)
     assert selected(html, "mappings-0-icon") == "tree"
     assert selected(html, "mappings-0-body_colour") == "#7a3e9d"
+
+
+def hide_ticked(html, row):
+    match = re.search(rf'<input[^>]*name="mappings-{row}-hide"[^>]*>', html)
+    assert match, f"no hide checkbox for mapping row {row}"
+    return "checked" in match[0]
+
+
+def test_hide_checkbox_shows_each_mappings_saved_state(client, stored):
+    mappings = [
+        {
+            "match": "Green",
+            "label": "",
+            "icon": "",
+            "body_colour": "",
+            "lid_colour": "",
+            "hide": True,
+        },
+        {"match": "Refuse", "label": "", "icon": "", "body_colour": "purple", "lid_colour": ""},
+    ]
+    stored({"mappings": mappings, "schedules": []})
+    html = client.get(INDEX).get_data(as_text=True)
+    assert hide_ticked(html, 0) is True
+    assert hide_ticked(html, 1) is False
+
+
+def test_ticking_hide_is_saved(client, stored):
+    client.post(SAVE, data={"mappings-0-match": "Green", "mappings-0-hide": "on"})
+    assert stored()["mappings"][0]["hide"] is True

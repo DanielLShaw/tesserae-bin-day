@@ -182,3 +182,11 @@ class TestFixedRuleEvents:
         mappings = [{"match": "Green", "label": "Garden"}]
         [(_, resolved)] = fixed_rule_events(streams, TODAY, TODAY, mappings)
         assert resolved["label"] == "Garden"
+
+    def test_hidden_streams_are_left_out(self):
+        streams = [
+            {"label": "Refuse", "first_date": "2026-10-06", "every_weeks": 1},
+            {"label": "Green", "first_date": "2026-10-06", "every_weeks": 1},
+        ]
+        events = fixed_rule_events(streams, TODAY, TODAY, [{"match": "Green", "hide": True}])
+        assert [stream["label"] for _, stream in events] == ["Refuse"]

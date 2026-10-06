@@ -132,3 +132,18 @@ class TestCacheState:
     @pytest.mark.parametrize("fetched_at", [None, "", "yesterday", "2026-10-06T09:00:00+01:00"])
     def test_missing_unreadable_or_future_timestamps_are_expired(self, fetched_at):
         assert cache_state(fetched_at, self.FETCHED) == "expired"
+
+
+def test_hidden_titles_never_reach_the_cell():
+    events = [all_day("Refuse", "2026-10-07"), all_day("Green", "2026-10-07")]
+    mappings = [{"match": "Green", "hide": True}]
+    payload = calendar_payload(events, mappings, at(2026, 10, 6, 8, 0), CUTOFF)
+    assert [[s["label"] for s in d["streams"]] for d in payload["days"]] == [["Refuse"]]
+
+
+def test_a_day_with_only_hidden_bins_disappears():
+    events = [all_day("Green", "2026-10-07"), all_day("Refuse", "2026-10-08")]
+    payload = calendar_payload(
+        events, [{"match": "Green", "hide": True}], at(2026, 10, 6, 8, 0), CUTOFF
+    )
+    assert [d["date"] for d in payload["days"]] == ["2026-10-08"]

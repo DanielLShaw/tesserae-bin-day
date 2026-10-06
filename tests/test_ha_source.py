@@ -201,3 +201,15 @@ class TestCache:
         (folder / f"{LIVERPOOL}.json").write_text(content)
         assert shown(cell_data(client, LIVERPOOL)) == LIVERPOOL_SHOWN
         assert len(liverpool.requests) == 1
+
+
+def test_a_hidden_collection_never_reaches_the_cell(app, client, registry, liverpool):
+    hide_green = {**GREEN_MAPPING, "hide": True}
+    with app.app_context():
+        registry.get("bin_day_core").server_module.save_config(
+            {"mappings": [hide_green], "schedules": []}
+        )
+    assert shown(cell_data(client, LIVERPOOL)) == [
+        ("2026-10-07", ["Refuse"]),
+        ("2026-10-12", ["Recycling"]),
+    ]

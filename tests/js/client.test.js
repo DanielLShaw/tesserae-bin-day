@@ -4,6 +4,7 @@ import { describe, test } from "node:test";
 
 import render, {
   dayLabel,
+  isMonoPalette,
   longDate,
   shortDate,
   shortWeekday,
@@ -384,4 +385,77 @@ describe("bin shapes", () => {
       assert.ok(!html.includes("url(y)"));
     });
   }
+});
+
+describe("mono rendering", () => {
+  // A shadow root whose host reads these six accent colours from the theme.
+  function drawThemed(size, data, options, accents) {
+    const saved = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = () => ({
+      getPropertyValue: (name) => accents[Number(name.at(-1)) - 1] ?? "",
+    });
+    try {
+      const shadow = { innerHTML: "", host: {} };
+      render(shadow, { cell: { size, options }, data, locale: "en" });
+      return shadow.innerHTML;
+    } finally {
+      globalThis.getComputedStyle = saved;
+    }
+  }
+  const PAPER = Array(6).fill("#000000");
+  const LIGHT = ["#A84B2A", "#9A7414", "#4F6F36", "#256E6B", "#3F5A88", "#7E4068"];
+  const isMonoHtml = (html) => /class="w bin-day size-\w+ mono"/.test(html);
+
+  test("a palette of only black, white and greys is mono", () => {
+    const greys = ["#000000", "#000", "rgb(0, 0, 0)", " #FFFFFF ", "#888888", "#7f8080"];
+    assert.equal(isMonoPalette(greys), true);
+  });
+
+  test("any colour, or nothing readable, is not mono", () => {
+    assert.equal(isMonoPalette(["#000000", "#A84B2A"]), false);
+    assert.equal(isMonoPalette([]), false);
+    assert.equal(isMonoPalette(["", "var(--x)"]), false);
+  });
+
+  test("Auto follows a black and white theme", () => {
+    assert.ok(isMonoHtml(drawThemed("sm", { days: [TOMORROW] }, { colours: "auto" }, PAPER)));
+  });
+
+  test("Auto stays in colour on a colourful theme", () => {
+    assert.ok(!isMonoHtml(drawThemed("sm", { days: [TOMORROW] }, { colours: "auto" }, LIGHT)));
+  });
+
+  test("Black & white forces mono on any theme", () => {
+    assert.ok(isMonoHtml(drawThemed("sm", { days: [TOMORROW] }, { colours: "mono" }, LIGHT)));
+  });
+
+  test("Colour keeps the bin colours even on a black and white theme", () => {
+    assert.ok(!isMonoHtml(drawThemed("sm", { days: [TOMORROW] }, { colours: "colour" }, PAPER)));
+  });
+
+  test("with no theme to read, Auto renders in colour", () => {
+    assert.ok(!isMonoHtml(draw("sm", { days: [TOMORROW] })));
+  });
+
+  test("mono markup carries the patterns the bins fill with", () => {
+    const html = drawThemed("md", { days: [TOMORROW] }, { colours: "mono" }, LIGHT);
+    for (const id of ["bin-hatch", "bin-dots", "bin-cross"]) {
+      assert.ok(html.includes(`<pattern id="${id}"`), id);
+    }
+  });
+
+  test("every chip and bin carries its black-and-white fill", () => {
+    const dotted = { ...REFUSE, mono_fill: "dotted" };
+    for (const size of ["sm", "md"]) {
+      const html = draw(size, { days: [{ ...TOMORROW, streams: [dotted] }] });
+      assert.ok(html.includes('data-mono="dotted"'), size);
+    }
+  });
+
+  test("a missing or unknown fill is white, and cannot break out of the markup", () => {
+    const evil = { ...REFUSE, mono_fill: 'solid" onload="x' };
+    const html = draw("sm", { days: [{ ...TOMORROW, streams: [evil, REFUSE] }] });
+    assert.equal(count(html, 'data-mono="white"'), 2);
+    assert.ok(!html.includes('onload="'));
+  });
 });

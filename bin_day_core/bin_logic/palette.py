@@ -29,6 +29,26 @@ PALETTE = {
 WHITE = "#ffffff"
 BLACK = "#000000"
 
+# Black-and-white fills, so bins stay tell-apart on mono panels and themes:
+# known materials keep the mockup's meaning, other bins follow their colour.
+MATERIAL_FILLS = {"refuse": "solid", "garden": "hatched", "recycling": "white"}
+COLOUR_FILLS = {
+    "black": "solid",
+    "grey": "solid",
+    "green": "hatched",
+    "blue": "white",
+    "white": "white",
+    "light_grey": "white",
+    "light_blue": "white",
+    "yellow": "white",
+    "brown": "dotted",
+    "orange": "dotted",
+    "purple": "crosshatch",
+    "red": "crosshatch",
+    "maroon": "crosshatch",
+    "burgundy": "crosshatch",
+}
+
 _HEX = re.compile(r"#([0-9a-f]{3}|[0-9a-f]{6})", re.IGNORECASE)
 
 
@@ -54,12 +74,27 @@ def icon_ink(fill):
     return WHITE if (1.05 / (lum + 0.05)) >= ((lum + 0.05) / 0.05) else BLACK
 
 
+def mono_fill(stream):
+    """The bin's black-and-white fill: its material's, else its colour's;
+    a custom hex colour goes by brightness."""
+    if stream["id"] in MATERIAL_FILLS:
+        return MATERIAL_FILLS[stream["id"]]
+    if stream["body_colour"] in COLOUR_FILLS:
+        return COLOUR_FILLS[stream["body_colour"]]
+    lum = _luminance(colour_hex(stream["body_colour"]))
+    if lum < 0.15:
+        return "solid"
+    return "white" if lum > 0.5 else "dotted"
+
+
 def display_stream(stream):
-    """``stream`` with hex body and lid colours and an ``icon_colour``."""
+    """``stream`` with hex body and lid colours, an ``icon_colour`` and its
+    black-and-white ``mono_fill``."""
     body = colour_hex(stream["body_colour"])
     return {
         **stream,
         "body_colour": body,
         "lid_colour": colour_hex(stream["lid_colour"]),
         "icon_colour": icon_ink(body),
+        "mono_fill": mono_fill(stream),
     }

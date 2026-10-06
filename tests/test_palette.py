@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from bin_day_core.bin_logic import colour_hex, display_stream, icon_ink
+from bin_day_core.bin_logic import colour_hex, display_stream, icon_ink, mono_fill
 from bin_day_core.bin_logic.resolve import COLOUR_WORDS, FALLBACK_COLOUR
 
 HEX6 = re.compile(r"#[0-9a-f]{6}")
@@ -76,6 +76,7 @@ def test_display_stream_converts_colours_and_adds_icon_colour():
         "body_colour": "#000000",
         "lid_colour": "#ffffff",
         "icon_colour": "#ffffff",
+        "mono_fill": "solid",
     }
 
 
@@ -91,3 +92,67 @@ def test_display_stream_resolves_palette_names():
     )
     assert HEX6.fullmatch(shown["body_colour"])
     assert shown["body_colour"] == shown["lid_colour"] != colour_hex(FALLBACK_COLOUR)
+
+
+def stream_of(id_, body):
+    return {"id": id_, "label": "Bin", "icon": None, "body_colour": body, "lid_colour": body}
+
+
+class TestMonoFill:
+    @pytest.mark.parametrize(
+        ("material", "body", "fill"),
+        [
+            ("refuse", "purple", "solid"),
+            ("garden", "brown", "hatched"),
+            ("recycling", "black", "white"),
+        ],
+    )
+    def test_known_materials_keep_their_fill_whatever_the_colour(self, material, body, fill):
+        assert mono_fill(stream_of(material, body)) == fill
+
+    @pytest.mark.parametrize(
+        ("body", "fill"),
+        [
+            ("black", "solid"),
+            ("grey", "solid"),
+            ("green", "hatched"),
+            ("blue", "white"),
+            ("white", "white"),
+            ("light_grey", "white"),
+            ("light_blue", "white"),
+            ("yellow", "white"),
+            ("brown", "dotted"),
+            ("orange", "dotted"),
+            ("purple", "crosshatch"),
+            ("red", "crosshatch"),
+            ("maroon", "crosshatch"),
+            ("burgundy", "crosshatch"),
+        ],
+    )
+    def test_other_bins_take_their_fill_from_their_colour(self, body, fill):
+        assert mono_fill(stream_of("other", body)) == fill
+
+    def test_every_palette_colour_has_a_fill(self):
+        for name in PALETTE_NAMES:
+            assert mono_fill(stream_of("other", name)) in {
+                "solid",
+                "hatched",
+                "white",
+                "dotted",
+                "crosshatch",
+            }
+
+    def test_food_glass_and_paper_go_by_colour_too(self):
+        assert mono_fill(stream_of("food", "light_grey")) == "white"
+        assert mono_fill(stream_of("glass", "brown")) == "dotted"
+
+    @pytest.mark.parametrize(
+        ("body", "fill"),
+        [("#202020", "solid"), ("#f0f0f0", "white"), ("#808080", "dotted")],
+    )
+    def test_custom_colours_go_by_brightness(self, body, fill):
+        assert mono_fill(stream_of("other", body)) == fill
+
+    def test_stockport_bins_all_look_different(self):
+        fills = [mono_fill(stream_of("other", c)) for c in ("black", "green", "blue", "brown")]
+        assert fills == ["solid", "hatched", "white", "dotted"]

@@ -15,6 +15,10 @@
 //           later days as a strip below: a chip for every bin, then names
 //           (only for a few bins, and they give way first), then when
 // Bins and chips show up to their slot count, the last slot becoming "+N".
+// Black & white: each bin takes the fill the server chose (solid, hatched,
+// white, dotted or cross-hatched; refuse solid, garden hatched, recycling
+// white, others by colour). The Colours option picks it, or Auto follows a
+// theme whose accents are all black, white or grey (paper, newsprint).
 // Bin colours arrive as hex from the server (they are the colours of real
 // bins); everything else paints from Spectra tokens in client.css.
 
@@ -37,6 +41,8 @@ const STRIP_DAYS = 3; // later days in the lg strip
 const STRIP_NAMED_MAX = 3; // bins in a strip row that still get their names
 const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
 const ICON_NAME = /^[a-z0-9-]+$/;
+const MONO_FILLS = ["solid", "hatched", "white", "dotted", "crosshatch"];
+const GREY_SPREAD = 8; // max RGB channel spread for a colour to count as grey
 const ENTITIES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ENTITIES[c]);
@@ -65,6 +71,51 @@ export const longDate = (iso, locale) =>
   formatDate(iso, locale, { weekday: "long", day: "numeric", month: "long" });
 export const shortWeekday = (iso, locale) => formatDate(iso, locale, { weekday: "short" });
 
+function parseColour(text) {
+  const value = String(text).trim().toLowerCase();
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/);
+  if (hex) {
+    const digits = hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join("") : hex[1];
+    return [0, 2, 4].map((i) => parseInt(digits.slice(i, i + 2), 16));
+  }
+  const rgb = value.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+  return rgb ? rgb.slice(1, 4).map(Number) : null;
+}
+
+// True when every colour is black, white or a grey.
+export function isMonoPalette(colours) {
+  const rgbs = colours.map(parseColour);
+  return rgbs.length > 0 && rgbs.every((rgb) => rgb && Math.max(...rgb) - Math.min(...rgb) <= GREY_SPREAD);
+}
+
+function themeAccents(shadow) {
+  if (!shadow.host || typeof globalThis.getComputedStyle !== "function") return [];
+  const style = globalThis.getComputedStyle(shadow.host);
+  return [1, 2, 3, 4, 5, 6].map((n) => style.getPropertyValue(`--accent-${n}`));
+}
+
+function isMono(shadow, options) {
+  if (options?.colours === "mono") return true;
+  if (options?.colours === "colour") return false;
+  return isMonoPalette(themeAccents(shadow));
+}
+
+// The patterns bin bodies fill with in black and white, one of each.
+const PATTERNS = `<svg class="defs" aria-hidden="true"><defs>
+  <pattern id="bin-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="5" height="5" class="hatch-paper"/><rect width="1.6" height="5" class="hatch-ink"/>
+  </pattern>
+  <pattern id="bin-dots" width="5" height="5" patternUnits="userSpaceOnUse">
+    <rect width="5" height="5" class="hatch-paper"/><circle cx="2.5" cy="2.5" r="1.1" class="hatch-ink"/>
+  </pattern>
+  <pattern id="bin-cross" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect width="5" height="5" class="hatch-paper"/><rect width="1.2" height="5" class="hatch-ink"/><rect width="5" height="1.2" class="hatch-ink"/>
+  </pattern>
+</defs></svg>`;
+
+const monoAttr = (stream) =>
+  `data-mono="${MONO_FILLS.includes(stream.mono_fill) ? stream.mono_fill : "white"}"`;
+
 export function xsCount(daysUntil) {
   if (daysUntil === 0) return { number: "", unit: "Today" };
   return { number: String(daysUntil), unit: daysUntil === 1 ? "day" : "days" };
@@ -83,7 +134,7 @@ const iconHtml = (stream) =>
 
 function chip(stream) {
   const colours = `--body:${safeColour(stream.body_colour)};--ink:${safeColour(stream.icon_colour)}`;
-  return `<span class="chip" role="img" aria-label="${escapeHtml(stream.label)}" style="${colours}">${iconHtml(stream)}</span>`;
+  return `<span class="chip" ${monoAttr(stream)} role="img" aria-label="${escapeHtml(stream.label)}" style="${colours}">${iconHtml(stream)}</span>`;
 }
 
 // The mockup's wheelie bin: handle and lid in the lid colour, the body in the
@@ -102,7 +153,7 @@ function bin(stream) {
     `--ink:${safeColour(stream.icon_colour)}`,
   ].join(";");
   const name = escapeHtml(stream.label);
-  return `<span class="bin-item"><span class="bin" role="img" aria-label="${name}" style="${colours}">${BIN_SVG}${iconHtml(stream)}</span><span class="bin-label">${name}</span></span>`;
+  return `<span class="bin-item"><span class="bin" ${monoAttr(stream)} role="img" aria-label="${name}" style="${colours}">${BIN_SVG}${iconHtml(stream)}</span><span class="bin-label">${name}</span></span>`;
 }
 
 function bins(streams, slots) {
@@ -230,8 +281,9 @@ export default function render(shadow, ctx) {
   else if (size === "md") body = mdBody(data.days, ctx.locale);
   else if (size === "lg") body = lgBody(data.days, ctx.locale);
   else body = smBody(data.days);
+  const mono = isMono(shadow, ctx.cell.options);
   shadow.innerHTML = `${STYLESHEETS}
-  <div class="w bin-day size-${size}" data-widget="bin_day">
-    <div class="w-body">${body}</div>
+  <div class="w bin-day size-${size}${mono ? " mono" : ""}" data-widget="bin_day">
+    ${mono ? PATTERNS : ""}<div class="w-body">${body}</div>
   </div>`;
 }

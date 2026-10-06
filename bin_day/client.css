@@ -327,6 +327,115 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- black and white ---------------------------------------------------- */
+/* Each bin shows the fill the server chose (data-mono): solid, hatched,
+   white, dotted or cross-hatched; the icons carry the meaning. Bins carry
+   their colours inline, so mono sets fills directly. */
+.bin-day {
+  --mono-ink: #000000; /* identity: black and white bins */
+  --mono-paper: #ffffff; /* identity: black and white bins */
+}
+
+.bin-day .defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.bin-day .hatch-paper {
+  fill: var(--mono-paper);
+}
+
+.bin-day .hatch-ink {
+  fill: var(--mono-ink);
+}
+
+/* white: the default, an outline */
+.bin-day.mono .chip {
+  background: var(--mono-paper);
+  color: var(--mono-ink);
+}
+
+.bin-day.mono .bin .body,
+.bin-day.mono .bin .lid {
+  fill: var(--mono-paper);
+}
+
+.bin-day.mono .bin .handle {
+  fill: var(--mono-ink);
+}
+
+.bin-day.mono .bin i {
+  color: var(--mono-ink);
+}
+
+/* solid */
+.bin-day.mono .chip[data-mono="solid"] {
+  background: var(--mono-ink);
+  color: var(--mono-paper);
+}
+
+.bin-day.mono .bin[data-mono="solid"] .body,
+.bin-day.mono .bin[data-mono="solid"] .lid {
+  fill: var(--mono-ink);
+}
+
+.bin-day.mono .bin[data-mono="solid"] i {
+  color: var(--mono-paper);
+}
+
+/* patterned: hatched, dotted, cross-hatched */
+.bin-day.mono .chip[data-mono="hatched"] {
+  background: repeating-linear-gradient(45deg, var(--mono-ink) 0 2px, var(--mono-paper) 2px 6px);
+}
+
+.bin-day.mono .chip[data-mono="dotted"] {
+  background:
+    radial-gradient(circle, var(--mono-ink) 1.3px, transparent 1.7px) 0 0 / 5px 5px,
+    var(--mono-paper);
+}
+
+.bin-day.mono .chip[data-mono="crosshatch"] {
+  background:
+    repeating-linear-gradient(45deg, var(--mono-ink) 0 1.5px, transparent 1.5px 6px),
+    repeating-linear-gradient(-45deg, var(--mono-ink) 0 1.5px, var(--mono-paper) 1.5px 6px);
+}
+
+.bin-day.mono .bin[data-mono="hatched"] .body {
+  fill: url(#bin-hatch);
+}
+
+.bin-day.mono .bin[data-mono="dotted"] .body {
+  fill: url(#bin-dots);
+}
+
+.bin-day.mono .bin[data-mono="crosshatch"] .body {
+  fill: url(#bin-cross);
+}
+
+/* a patterned bin's icon sits on a white disc so it reads over the pattern */
+.bin-day.mono :is([data-mono="hatched"], [data-mono="dotted"], [data-mono="crosshatch"]) i {
+  padding: 0.22em;
+  border-radius: 50%;
+  background: var(--mono-paper);
+}
+
+.bin-day.mono .chip:is([data-mono="hatched"], [data-mono="dotted"], [data-mono="crosshatch"]) i {
+  font-size: calc(var(--chip) * 0.46); /* the disc is about 70% of the chip */
+}
+
+.bin-day.mono .bin:is([data-mono="hatched"], [data-mono="dotted"], [data-mono="crosshatch"]) i {
+  box-shadow: 0 0 0 2px var(--mono-ink);
+}
+
+.bin-day.mono .more {
+  background: var(--mono-paper);
+  color: var(--mono-ink);
+  outline: 2px solid var(--mono-ink);
+  outline-offset: -2px;
+}
+
 /* ---- empty state and error tile ---------------------------------------- */
 .bin-day .notice {
   flex: 1 1 auto;

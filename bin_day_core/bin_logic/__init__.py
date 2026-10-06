@@ -9,7 +9,7 @@ between its modules then work as normal.
 from .calendar import cache_state, calendar_payload, calendar_query_range, events_by_date
 from .config import parse_admin_form, source_choices
 from .days import collection_days, next_change_at, parse_cutoff
-from .palette import colour_hex, display_stream, icon_ink
+from .palette import colour_hex, display_stream, icon_ink, mono_fill
 from .payload import build_payload, find_schedule, fixed_rule_payload
 from .resolve import is_hidden, resolve_stream
 from .schedule import fixed_rule_events, occurrences
@@ -27,6 +27,7 @@ __all__ = [
     "fixed_rule_events",
     "fixed_rule_payload",
     "is_hidden",
+    "mono_fill",
     "icon_ink",
     "next_change_at",
     "occurrences",

@@ -146,6 +146,27 @@
         }
       ],
       "help": "After this time on collection day, today's bins count as collected and the next collection is shown."
+    },
+    {
+      "name": "colours",
+      "type": "select",
+      "label": "Colours",
+      "default": "auto",
+      "choices": [
+        {
+          "value": "auto",
+          "label": "Auto (follow the theme)"
+        },
+        {
+          "value": "colour",
+          "label": "Colour"
+        },
+        {
+          "value": "mono",
+          "label": "Black & white"
+        }
+      ],
+      "help": "Black & white draws refuse solid, garden hatched and other bins outlined, for mono panels. Auto switches to it on black and white themes such as Paper and Newsprint."
     }
   ],
   "updates": {

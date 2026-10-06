@@ -90,7 +90,7 @@ node --check bin_day/client.js
 | `test_resolve.py` | Event title to icon and colours: user mappings, colour words, material keywords, fallback; Liverpool and Stockport titles; hiding a title |
 | `test_schedule.py` | Fixed-rule dates: 1 to 8 weekly cycles and their phase, future start, year boundary, clock changes |
 | `test_collections.py` | The 0 to 7 day window, the cutoff time, same-day merge, de-duplication, the `next_change_at` refresh hint |
-| `test_palette.py` | Colour names to hex, and a black or white icon that contrasts with each fill |
+| `test_palette.py` | Colour names to hex, a black or white icon that contrasts with each fill, and each bin's black-and-white fill |
 | `test_config.py` | Parsing and validating the admin form |
 | `test_payload.py` | The data a cell receives from `fetch()` |
 | `test_calendar.py` | Home Assistant events to dates (all-day and timed, across clock changes), the query range, cache freshness |
@@ -148,7 +148,7 @@ screenshots/                 gitignored, always the latest run
   index.html                 contact sheet: one row per scenario
   next-week/xs.png ... lg.png
   today/  after-cutoff/  colour-names/  busy-day/  busy-second-day/
-  overflow/  overflow-second-day/  empty/  error/
+  overflow/  overflow-second-day/  black-and-white/  empty/  error/
 ```
 
 Open `screenshots/index.html` to compare everything at once. Options, all

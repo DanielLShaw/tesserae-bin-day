@@ -49,6 +49,7 @@ class Scenario:
     expect: object
     mappings: list = field(default_factory=list)
     cutoff: str = "10:00"
+    colours: str = "auto"
     schedule_deleted: bool = False
 
     @property
@@ -59,7 +60,7 @@ class Scenario:
     @property
     def options(self):
         schedule_id = "deleted" if self.schedule_deleted else SCHEDULE_ID
-        return {"source": f"schedule:{schedule_id}", "cutoff": self.cutoff}
+        return {"source": f"schedule:{schedule_id}", "cutoff": self.cutoff, "colours": self.colours}
 
 
 SCENARIOS = [
@@ -180,6 +181,15 @@ SCENARIOS = [
             (1, ["trash"]),
             (6, ["recycle", "leaf", "fork-knife", "wine", "newspaper", "newspaper"] + [None] * 8),
         ],
+    ),
+    Scenario(
+        "black-and-white",
+        "Colours set to Black & white: solid, white, hatched, dotted and cross-hatched.",
+        [_stream(label, "2026-10-07", 1) for label in ("Refuse", "Recycling", "Garden waste")]
+        + [_stream(label, "2026-10-12", 1) for label in ("Glass", "Brown bin", "Purple bin")],
+        _at(6, 8),
+        [(1, ["trash", "recycle", "leaf"]), (6, ["wine", None, None])],
+        colours="mono",
     ),
     Scenario(
         "empty",

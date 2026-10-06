@@ -3,9 +3,9 @@
 A [Tesserae](https://github.com/dmellok/tesserae) widget showing which bins are
 collected in the next 7 days and how many days until each collection. It
 reads a fixed-rule schedule you enter (first collection date, repeat every
-N weeks), and, from milestone 4, a Home Assistant calendar such as the one
-the [Waste Collection Schedule](https://github.com/mampfes/hacs_waste_collection_schedule)
-integration creates.
+N weeks) or a Home Assistant calendar, such as the one the
+[Waste Collection Schedule](https://github.com/mampfes/hacs_waste_collection_schedule)
+integration creates, through Tesserae's bundled Home Assistant Core plugin.
 
 The repo ships two plugin folders, installed together:
 
@@ -93,6 +93,8 @@ node --check bin_day/client.js
 | `test_palette.py` | Colour names to hex, and a black or white icon that contrasts with each fill |
 | `test_config.py` | Parsing and validating the admin form |
 | `test_payload.py` | The data a cell receives from `fetch()` |
+| `test_calendar.py` | Home Assistant events to dates (all-day and timed, across clock changes), the query range, cache freshness |
+| `test_ha_source.py` | The calendar source end to end against a fake Home Assistant: dropdown, query, renamed calendar, not connected, the 1-hour cache and 24-hour fallback |
 | `test_plugins_load.py`, `test_manifests.py` | Both plugins load in Tesserae, validate against its schema, offer the source dropdown and daily refresh |
 | `test_widget.py` | `fetch()` and `choices()` end to end, including every error tile |
 | `test_admin.py`, `test_core_server.py` | The admin page, config storage, timezone and plugin reload |
@@ -107,6 +109,30 @@ pushed widgets, the same way a developer push installs them. Tests render a
 cell through Tesserae's `/_test/render` route and read back the JSON that
 `fetch()` handed it. The clock is pinned by patching `_now()` on the
 `bin_day_core` server module, so date-dependent results are fixed.
+
+The Home Assistant tests run a small fake Home Assistant HTTP server (the
+`FakeHA` class in `tests/conftest.py`) on a local port and point the bundled
+Home Assistant Core plugin at it, so the real request code, auth header and
+Tesserae's network permission checks all run. It answers like Home Assistant
+does, including a 400 for an unknown calendar, and can be told to fail or
+stop.
+
+## Trying it by hand
+
+```sh
+uv run preview/serve.py      # then open http://127.0.0.1:8765/
+```
+
+Runs Tesserae's own dev server from `.tesserae/` with both plugins linked in,
+listening on this machine only, with reload on. Everything it stores (the
+admin password it asks for on first visit, schedules, a Home Assistant URL
+and token) lives in `.devdata/` (gitignored); delete that folder to start over.
+
+- Schedules and title mappings: Plugins, Bin Day Core.
+- Home Assistant calendars: Settings, Plugins, Home Assistant Core, then your
+  HA URL and a long-lived access token (HA: your profile, Security).
+- Every size at once, with a form for the cell options:
+  <http://127.0.0.1:8765/_test/preview?plugin=bin_day>
 
 ## Screenshots
 
@@ -153,7 +179,7 @@ bin_day_core/         admin + data plugin
   bin_logic/          pure logic, no Tesserae imports; server.py loads it by path
   templates/          admin page
 tests/                pytest suites; tests/js/ for client.js
-preview/              screenshot scenarios and tool
+preview/              screenshot scenarios and tool, local dev server
 ```
 
 `tests/`, `preview/` and `.github/` are export-ignored, so the release tarball

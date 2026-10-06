@@ -6,6 +6,7 @@ package, so server.py loads this package by path; the relative imports
 between its modules then work as normal.
 """
 
+from .calendar import cache_state, calendar_payload, calendar_query_range, events_by_date
 from .config import parse_admin_form, source_choices
 from .days import collection_days, next_change_at, parse_cutoff
 from .palette import colour_hex, display_stream, icon_ink
@@ -15,9 +16,13 @@ from .schedule import fixed_rule_events, occurrences
 
 __all__ = [
     "build_payload",
+    "cache_state",
+    "calendar_payload",
+    "calendar_query_range",
     "collection_days",
     "colour_hex",
     "display_stream",
+    "events_by_date",
     "find_schedule",
     "fixed_rule_events",
     "fixed_rule_payload",

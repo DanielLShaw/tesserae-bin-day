@@ -1,16 +1,21 @@
 """Bin Day Core: shared config and data for the bin_day widget.
 
 Holds the title mappings and fixed-rule schedules (edited on this plugin's
-admin page) and builds the collection-days payload a bin_day cell shows.
-The bin_day widget reaches this module through the plugin registry.
+admin page) and builds the collection-days payload a bin_day cell shows,
+from a fixed-rule schedule or a Home Assistant calendar (read through the
+bundled Home Assistant Core plugin). The bin_day widget reaches this module
+through the plugin registry.
 """
 
 import importlib.util
 import json
+import re
 import secrets
 import sys
+import urllib.error
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 
@@ -38,10 +43,19 @@ def _load_logic():
 logic = _load_logic()
 
 EMPTY_CONFIG = {"mappings": [], "schedules": []}
+CALENDAR_PREFIX = "calendar."
+NEEDS_HA_CORE = (
+    "Needs Home Assistant Core: install it, then set your Home Assistant URL "
+    "and access token in Settings, Plugins, Home Assistant Core."
+)
+
+
+def _data_dir():
+    return current_app.config["PLUGIN_REGISTRY"].get("bin_day_core").data_dir
 
 
 def _config_path():
-    return current_app.config["PLUGIN_REGISTRY"].get("bin_day_core").data_dir / "config.json"
+    return _data_dir() / "config.json"
 
 
 def load_config():
@@ -55,12 +69,15 @@ def load_config():
     return {key: config.get(key) or [] for key in EMPTY_CONFIG}
 
 
-def save_config(config):
-    """Write the config atomically so a crash mid-write never corrupts it."""
-    path = _config_path()
+def _write_json(path, value):
+    """Write atomically so a crash mid-write never leaves a corrupt file."""
     tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(config, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(value, indent=2), encoding="utf-8")
     tmp.replace(path)
+
+
+def save_config(config):
+    _write_json(_config_path(), config)
 
 
 def _now():
@@ -73,18 +90,107 @@ def _now():
         return datetime.now().astimezone()
 
 
+def _ha_core():
+    plugin = current_app.config["PLUGIN_REGISTRY"].get("ha_core")
+    return plugin.server_module if plugin is not None else None
+
+
+def _calendar_choices():
+    """HA calendar entities, once Home Assistant Core is connected. An
+    unreachable HA shows as Home Assistant Core's own guidance entry."""
+    ha = _ha_core()
+    if ha is None or not ha.is_configured():
+        return []
+    return [
+        {**entry, "label": f"Calendar: {entry['label']}"}
+        for entry in ha.entity_choices(domains=("calendar",))
+    ]
+
+
 def choices(name):
-    """Dropdown entries for the bin_day cell editor."""
+    """Dropdown entries for the bin_day cell editor: schedules, then calendars."""
     if name != "sources":
         return []
-    return logic.source_choices(load_config())
+    return logic.source_choices(load_config()) + _calendar_choices()
 
 
-def collections(source, cutoff):
+def _cache_path(entity_id):
+    folder = _data_dir() / "ha_cache"
+    folder.mkdir(exist_ok=True)
+    return folder / f"{re.sub(r'[^a-z0-9_.]', '_', entity_id)}.json"
+
+
+def _read_cache(entity_id):
+    """The last HA answer for ``entity_id`` as ``{fetched_at, events}``, or {}."""
+    try:
+        cached = json.loads(_cache_path(entity_id).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(cached, dict) or not isinstance(cached.get("events"), list):
+        return {}
+    return cached
+
+
+def _fetch_events(ha, entity_id, now):
+    start, end = logic.calendar_query_range(now)
+    events = ha.request_json(f"/api/calendars/{quote(entity_id)}?start={start}&end={end}")
+    if not isinstance(events, list):
+        raise ValueError("Home Assistant sent something other than a list of events")
+    return events
+
+
+def _calendar_missing(ha, entity_id, err):
+    """HA answers a 400 for an unknown calendar (and for a bad query), so a
+    400 is only "missing" when the entity's state is a 404 too."""
+    if not (isinstance(err, urllib.error.HTTPError) and err.code == 400):
+        return False
+    try:
+        ha.get_state(entity_id)
+    except Exception as state_err:  # noqa: BLE001 - any failure: not provably missing
+        return isinstance(state_err, urllib.error.HTTPError) and state_err.code == 404
+    return False
+
+
+def _calendar_payload(entity_id, cutoff, fresh):
+    """Payload from a Home Assistant calendar. Answers are cached for an hour;
+    if HA fails, a cached answer up to a day old is used instead."""
+    ha = _ha_core()
+    if ha is None or not ha.is_configured():
+        return {"error": NEEDS_HA_CORE}
+    now = _now()
+    cached = _read_cache(entity_id)
+    state = logic.cache_state(cached.get("fetched_at"), now)
+    if state == "fresh" and not fresh:
+        events = cached["events"]
+    else:
+        try:
+            events = _fetch_events(ha, entity_id, now)
+        except Exception as err:  # noqa: BLE001 - ha_core raises urllib, OS and runtime errors
+            if _calendar_missing(ha, entity_id, err):
+                return {
+                    "error": f"Calendar {entity_id} wasn't found in Home Assistant. If it "
+                    "was renamed, pick it again in this cell's Source option."
+                }
+            if state == "expired":
+                return {
+                    "error": f"Couldn't load {entity_id} from Home Assistant: "
+                    f"{ha.coerce_error(err)}"
+                }
+            events = cached["events"]
+        else:
+            _write_json(_cache_path(entity_id), {"fetched_at": now.isoformat(), "events": events})
+    mappings = load_config()["mappings"]
+    return logic.calendar_payload(events, mappings, now, logic.parse_cutoff(cutoff))
+
+
+def collections(source, cutoff, fresh=False):
     """The bin_day payload for a cell's ``source`` and ``cutoff`` options, or
-    ``{"error": ...}`` for the cell's error tile. Never raises."""
+    ``{"error": ...}`` for the cell's error tile. ``fresh`` skips the Home
+    Assistant cache. Never raises."""
     if not source:
-        return {"error": "Choose a bin schedule in this cell's Source option."}
+        return {"error": "Choose a bin schedule or calendar in this cell's Source option."}
+    if source.startswith(CALENDAR_PREFIX):
+        return _calendar_payload(source, cutoff, fresh)
     config = load_config()
     schedule = logic.find_schedule(config, source)
     if schedule is None:

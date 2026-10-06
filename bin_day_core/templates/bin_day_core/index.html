@@ -23,8 +23,18 @@
 <div class="page-head">
   <h1><i class="ph-bold ph-trash" aria-hidden="true"></i> Bin Day Core</h1>
   <p class="page-blurb">Bin schedules and title mappings for the Bin Day widget. Each Bin Day cell
-    picks a schedule (or, later, a Home Assistant calendar) in its Source option.</p>
+    picks a schedule from this page, or a Home Assistant calendar, in its Source option.</p>
 </div>
+
+<section class="card">
+  {{ card_head('Home Assistant calendars', icon_name='house-line', level=2) }}
+  <p class="field-help">Connect Home Assistant Core (Settings, Plugins, Home Assistant Core) and
+    every calendar entity appears in a Bin Day cell's Source option, no schedule needed. With the
+    Waste Collection Schedule integration, each event title is a bin name: add a title mapping
+    below for any name that doesn't pick up the right icon or colour, such as Liverpool's "Green".
+    Waste Collection Schedule's own <code>customize</code> alias option can rename them at source
+    too.</p>
+</section>
 
 {% if errors %}
 <section class="card" role="alert">

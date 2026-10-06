@@ -4,19 +4,22 @@
     uv run preview/shoot.py -s today -z xs -z sm    some scenarios and sizes
     uv run preview/shoot.py -t light -t dark -t paper   several themes
     uv run preview/shoot.py --e6                    also simulate the E1002's inks
+    uv run preview/shoot.py -d 400x240 -d 150x200   cells of any size (WxH)
 
 Writes screenshots/<scenario>/<size>.png (``<size>-<theme>.png`` for themes
 other than light) and screenshots/index.html, a contact sheet of the lot.
+A -d WxH cell is saved as ``<W>x<H>.png``; Tesserae picks its size class from
+its dimensions, as it does on a real panel.
 With --e6, each shot also gets an ``-e6`` twin: Tesserae's own quantiser
 maps it to the six Spectra 6 inks the reTerminal E1002 prints (Floyd-
 Steinberg, as its packer does), shown in the inks' measured colours.
-A full run (no -s/-z/-t) replaces the whole folder, so it holds only the
+A full run (no -s/-z/-t/-d/--e6) replaces the whole folder, so it holds only the
 latest shots; narrower runs update just the shots they take. Shots are
 rendered into a staging folder first, so a failed run changes nothing.
 
 Boots a real Tesserae app from the pinned checkout in .tesserae/ with this
-repo's plugins installed, saves each scenario's config from preview/scenarios.py, pins its
-clock and renders through /_test/render, as the tests do.
+repo's plugins installed, saves each scenario's config from preview/scenarios.py, pins
+its clock and renders through /_test/render, as the tests do.
 """
 
 import argparse
@@ -24,6 +27,7 @@ import html
 import json
 import logging
 import os
+import re
 import secrets
 import shutil
 import sys
@@ -38,6 +42,7 @@ from werkzeug.serving import make_server
 REPO = Path(__file__).resolve().parent.parent
 TESSERAE_SRC = Path(os.environ.get("TESSERAE_SRC", REPO / ".tesserae")).expanduser()
 SIZES = ("xs", "sm", "md", "lg")
+DIMS = re.compile(r"^(\d{2,4})x(\d{2,4})$")
 INSTALL_HINT = "uv run playwright install chromium --only-shell"
 
 
@@ -49,7 +54,14 @@ def parse_args():
     parser.add_argument("-t", "--theme", action="append", help="repeatable; default light")
     parser.add_argument("-o", "--out", type=Path, default=REPO / "screenshots")
     parser.add_argument("--e6", action="store_true", help="add Spectra 6 panel simulations")
+    parser.add_argument("-d", "--dims", action="append", type=_dims, help="WxH; repeatable")
     return parser.parse_args()
+
+
+def _dims(value):
+    if not DIMS.match(value):
+        raise argparse.ArgumentTypeError(f"{value!r} is not WxH, such as 400x240")
+    return value
 
 
 def boot_app():
@@ -100,8 +112,14 @@ def launch_browser(playwright):
     return playwright.chromium.launch(executable_path=str(shells[0]))
 
 
-def shot_name(size, theme):
-    return f"{size}.png" if theme == "light" else f"{size}-{theme}.png"
+def shot_name(view, theme):
+    """A view is a size class ("sm") or cell dimensions ("400x240")."""
+    return f"{view}.png" if theme == "light" else f"{view}-{theme}.png"
+
+
+def render_query(view):
+    match = DIMS.match(view)
+    return f"size=sm&w={match[1]}&h={match[2]}" if match else f"size={view}"
 
 
 def simulate_e6(png_path, out_path):
@@ -126,18 +144,26 @@ def _themes_present(out):
     return ["light", *sorted(names - {"light"})]
 
 
+def _views_present(out):
+    """The size classes, then any WxH cells with shots in ``out``, smallest first."""
+    dims = {p.stem.split("-", 1)[0] for p in out.glob("*/*.png")}
+    dims = sorted((d for d in dims if DIMS.match(d)), key=lambda d: [int(n) for n in d.split("x")])
+    return [*SIZES, *dims]
+
+
 def write_contact_sheet(out):
     """index.html: every scenario's shots in ``out``, one row per scenario."""
     themes = _themes_present(out)
-    heads = "".join(f"<th>{size} · {theme}</th>" for theme in themes for size in SIZES)
+    views = _views_present(out)
+    heads = "".join(f"<th>{view} · {theme}</th>" for theme in themes for view in views)
     rows = []
     for scenario in SCENARIOS:
         cells = "".join(
-            f'<td><img src="{scenario.name}/{shot_name(size, theme)}" alt="{size} {theme}"></td>'
-            if (out / scenario.name / shot_name(size, theme)).exists()
+            f'<td><img src="{scenario.name}/{shot_name(view, theme)}" alt="{view} {theme}"></td>'
+            if (out / scenario.name / shot_name(view, theme)).exists()
             else "<td></td>"
             for theme in themes
-            for size in SIZES
+            for view in views
         )
         description = html.escape(scenario.description)
         rows.append(f"<tr><th>{scenario.name}<p>{description}</p></th>{cells}</tr>")
@@ -151,7 +177,7 @@ def write_contact_sheet(out):
     )
 
 
-def shoot(stage, scenarios, sizes, themes, e6=False):
+def shoot(stage, scenarios, views, themes, e6=False):
     """Render every requested shot into ``stage``; returns how many."""
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     app, core, data_root = boot_app()
@@ -174,11 +200,11 @@ def shoot(stage, scenarios, sizes, themes, e6=False):
                 folder.mkdir(parents=True)
                 opts = quote(json.dumps(scenario.options))
                 for theme in themes:
-                    for size in sizes:
-                        page.goto(f"{base}&size={size}&theme={quote(theme)}&opts={opts}")
+                    for view in views:
+                        page.goto(f"{base}&{render_query(view)}&theme={quote(theme)}&opts={opts}")
                         page.wait_for_function("window.__tesseraeComposed === true")
                         page.evaluate("document.fonts.ready")
-                        shot = folder / shot_name(size, theme)
+                        shot = folder / shot_name(view, theme)
                         page.locator(".cell").first.screenshot(path=shot)
                         count += 1
                         if e6:
@@ -193,14 +219,14 @@ def shoot(stage, scenarios, sizes, themes, e6=False):
 def main():
     args = parse_args()
     scenarios = [s for s in SCENARIOS if not args.scenario or s.name in args.scenario]
-    sizes = args.size or list(SIZES)
+    views = [*(args.size or ([] if args.dims else SIZES)), *(args.dims or [])]
     themes = args.theme or ["light"]
-    full_run = not (args.scenario or args.size or args.theme or args.e6)
+    full_run = not (args.scenario or args.size or args.theme or args.dims or args.e6)
 
     # Render into a staging folder so a failed run leaves the last shots intact.
     stage = Path(tempfile.mkdtemp(prefix="bin-day-stage-"))
     try:
-        count = shoot(stage, scenarios, sizes, themes, e6=args.e6)
+        count = shoot(stage, scenarios, views, themes, e6=args.e6)
         if full_run and args.out.exists():
             shutil.rmtree(args.out)
         shutil.copytree(stage, args.out, dirs_exist_ok=True)

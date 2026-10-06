@@ -160,7 +160,12 @@ uv run preview/shoot.py -s today -s empty     # only these scenarios
 uv run preview/shoot.py -z xs -z sm           # only these sizes
 uv run preview/shoot.py -t dark -t paper      # other themes, saved as <size>-<theme>.png
 uv run preview/shoot.py --e6                  # also <size>-e6.png: as a Spectra 6 panel prints it
+uv run preview/shoot.py -d 400x240 -d 800x480 # cells of any size, saved as <W>x<H>.png
 ```
+
+A `-d` cell gets the size class Tesserae would give it on a panel (from its
+longer side), so `-d 400x240` shows what a quarter of the E1002's 800x480
+screen looks like.
 
 `--e6` runs each shot through Tesserae's own quantiser, dithering it to the
 six Spectra 6 inks as the reTerminal E1002's packer does, and draws each ink

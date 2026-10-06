@@ -462,3 +462,48 @@
   font-size: clamp(12px, 7cqmin, 20px);
   font-weight: var(--fw-medium);
 }
+
+/* Long errors stop at a few lines; a larger cell shows the whole message. */
+.bin-day .notice.is-error p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
+}
+
+/* ---- narrow cells ------------------------------------------------------- */
+/* Square and tall sm cells: each row puts its day label above its chips, so
+   neither squeezes the other. */
+@container (max-aspect-ratio: 4/3) {
+  .bin-day.size-sm .w-body {
+    justify-content: space-evenly;
+  }
+
+  .bin-day.size-sm .day-row {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
+  .bin-day.size-sm .day-row .chips {
+    --chip: clamp(20px, 24cqmin, 88px);
+  }
+
+  .bin-day.size-sm .day-row .chips.many {
+    --chip: clamp(18px, 18cqmin, 72px);
+  }
+}
+
+/* Narrow cells: the empty and error tiles stack their icon above the text. */
+@container (max-width: 280px) {
+  .bin-day .notice {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.3em;
+  }
+
+  .bin-day .notice.is-error p {
+    -webkit-line-clamp: 4;
+  }
+}

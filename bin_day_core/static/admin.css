@@ -1,0 +1,183 @@
+/* Bin Day Core admin page. Built from Tesserae's admin tokens (--t-*), so
+   it follows the light and dark admin themes like the rest of the UI. */
+
+/* ---- source: two choice cards ------------------------------------------- */
+.bd-sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--t-space-3);
+}
+
+.bd-source {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: var(--t-space-3);
+  padding: var(--t-space-3) var(--t-space-4);
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius-md);
+  background: var(--t-surface);
+  cursor: pointer;
+}
+
+.bd-source:hover {
+  border-color: var(--t-border-strong);
+}
+
+.bd-source:has(input:checked) {
+  border-color: var(--t-accent);
+  background: var(--t-accent-soft);
+}
+
+.bd-source input {
+  margin: 0;
+  accent-color: var(--t-accent);
+}
+
+.bd-source > i {
+  font-size: 22px;
+  color: var(--t-accent);
+}
+
+.bd-source strong {
+  display: block;
+  font-size: var(--t-size-base);
+  color: var(--t-fg);
+}
+
+.bd-source small {
+  font-size: var(--t-size-sm);
+  color: var(--t-fg-soft);
+}
+
+/* ---- calendar picker and notes ------------------------------------------- */
+.bd-calendar {
+  max-width: 32rem;
+}
+
+.bd-sub {
+  margin: var(--t-space-5) 0 var(--t-space-1);
+  font-size: var(--t-size-base);
+}
+
+.bd-note:empty {
+  display: none;
+}
+
+.bd-note .ph {
+  color: var(--t-warn);
+}
+
+.bd-errors ul {
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--t-danger);
+}
+
+/* ---- rows ------------------------------------------------------------------ */
+.bd-scroll {
+  margin: var(--t-space-3) 0 var(--t-space-2);
+  overflow-x: auto;
+}
+
+.bd-list {
+  display: grid;
+  gap: 6px;
+  min-width: 880px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bd-head,
+.bd-row {
+  display: grid;
+  align-items: start;
+  gap: var(--t-space-2);
+}
+
+.bd-bin {
+  grid-template-columns: minmax(9rem, 1.4fr) 10.5rem 6.5rem repeat(3, minmax(8.5rem, 1fr)) 64px;
+}
+
+.bd-mapping {
+  grid-template-columns: minmax(9rem, 1.2fr) minmax(8rem, 1fr) repeat(3, minmax(8.5rem, 1fr)) 64px;
+}
+
+.bd-head {
+  min-width: 880px;
+  padding: 0 13px var(--t-space-1);
+  font-size: var(--t-size-sm);
+  font-weight: 600;
+  color: var(--t-fg-soft);
+}
+
+.bd-row {
+  padding: 8px 12px;
+  border: 1px solid var(--t-border);
+  border-radius: var(--t-radius-md);
+  background: var(--t-surface);
+  box-shadow: var(--t-shadow-xs);
+}
+
+/* A hidden bin fades, but its eye button stays clear to turn it back on. */
+.bd-row.is-disabled > :not(.bd-actions) {
+  opacity: 0.45;
+}
+
+.bd-row .field {
+  min-width: 0;
+}
+
+.bd-title {
+  align-self: center;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--t-fg);
+}
+
+.bd-custom {
+  display: flex;
+  align-items: center;
+  gap: var(--t-space-2);
+}
+
+.bd-custom[hidden] {
+  display: none;
+}
+
+.bd-custom input[type="text"] {
+  min-width: 0;
+}
+
+.bd-custom input[type="color"] {
+  flex: 0 0 auto;
+  width: 38px;
+}
+
+.bd-icon-preview {
+  flex: 0 0 auto;
+  font-size: 20px;
+  color: var(--t-fg);
+}
+
+.bd-actions {
+  display: flex;
+  align-self: center;
+  align-items: center;
+  gap: 2px;
+}
+
+.bd-icon-btn {
+  padding: 6px;
+}
+
+.bd-icon-btn[aria-pressed="true"] {
+  color: var(--t-accent);
+}
+
+.bd-icon-spacer {
+  width: 30px;
+}

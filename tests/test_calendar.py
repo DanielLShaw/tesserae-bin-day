@@ -9,6 +9,7 @@ from bin_day_core.bin_logic import (
     cache_state,
     calendar_payload,
     calendar_query_range,
+    distinct_titles,
     events_by_date,
 )
 
@@ -33,6 +34,9 @@ class TestQueryRange:
             "2026-10-05T23:00:00Z",
             "2026-10-14T23:00:00Z",
         )
+
+    def test_a_longer_range_for_listing_a_calendars_titles(self):
+        assert calendar_query_range(at(2026, 10, 6, 8, 0), days=56)[1] == "2026-12-01T00:00:00Z"
 
     def test_range_spanning_the_clocks_going_back(self):
         # Starts in BST, ends in GMT: the end is 00:00 UTC.
@@ -147,3 +151,14 @@ def test_a_day_with_only_hidden_bins_disappears():
         events, [{"match": "Green", "hide": True}], at(2026, 10, 6, 8, 0), CUTOFF
     )
     assert [d["date"] for d in payload["days"]] == ["2026-10-08"]
+
+
+def test_distinct_titles_in_first_seen_order_ignoring_case_and_untitled():
+    events = [
+        all_day("Refuse", "2026-10-07"),
+        all_day("Green", "2026-10-07"),
+        all_day("refuse", "2026-10-14"),
+        {"start": {"date": "2026-10-08"}},
+        all_day(" Recycling ", "2026-10-12"),
+    ]
+    assert distinct_titles(events) == ["Refuse", "Green", "Recycling"]

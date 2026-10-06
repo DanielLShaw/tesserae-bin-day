@@ -190,3 +190,10 @@ class TestFixedRuleEvents:
         ]
         events = fixed_rule_events(streams, TODAY, TODAY, [{"match": "Green", "hide": True}])
         assert [stream["label"] for _, stream in events] == ["Refuse"]
+
+    def test_a_bin_hidden_with_its_eye_button_is_left_out(self):
+        streams = [
+            {"label": "Refuse", "first_date": "2026-10-06", "every_weeks": 1},
+            {"label": "Green", "first_date": "2026-10-06", "every_weeks": 1, "hide": True},
+        ]
+        assert [s["label"] for _, s in fixed_rule_events(streams, TODAY, TODAY)] == ["Refuse"]

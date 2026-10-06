@@ -1,13 +1,20 @@
-"""The Bin Day Core admin config: form parsing and cell source choices.
+"""The Bin Day Core admin form -> stored config.
 
 Stored shape::
 
-    {"mappings": [{match, label, icon, body_colour, lid_colour, hide}],
-     "schedules": [{id, name, streams: [{label, first_date, every_weeks,
-                                         icon, body_colour, lid_colour}]}]}
+    {"source": "schedule" | "calendar",
+     "calendar": "calendar.<entity>",
+     "schedule": [{label, first_date, every_weeks, icon, body_colour,
+                   lid_colour, hide}],
+     "mappings": [{match, label, icon, body_colour, lid_colour, hide}]}
 
-The admin form posts flat fields named ``mappings-<n>-<field>`` and
-``schedules-<n>-streams-<m>-<field>``; a ``-delete`` field drops a row.
+Every cell shows this one source: the manual schedule's bins, or the Home
+Assistant calendar's events styled by the title mappings.
+
+The form posts ``source``, ``calendar``, and rows as ``schedule-<n>-<field>``
+and ``mappings-<n>-<field>``. A row's icon or colour may be "custom", its
+value then coming from ``<field>_custom``. ``-hide`` is set by the row's eye
+button. A removed row is simply not posted.
 """
 
 import re
@@ -16,9 +23,11 @@ from datetime import date
 from .resolve import clean_text
 from .schedule import MAX_EVERY_WEEKS
 
-MAPPING_FIELDS = ("match", "label", "icon", "body_colour", "lid_colour")
-STREAM_FIELDS = ("label", "first_date", "every_weeks", "icon", "body_colour", "lid_colour")
-SOURCE_PREFIX = "schedule:"
+SOURCES = ("schedule", "calendar")
+CUSTOM = "custom"
+STYLE_FIELDS = ("icon", "body_colour", "lid_colour")
+BIN_FIELDS = ("label", "first_date", "every_weeks")
+MAPPING_FIELDS = ("match", "label")
 
 
 def _indices(form, prefix):
@@ -27,77 +36,60 @@ def _indices(form, prefix):
     return sorted({int(m[1]) for key in form if (m := pattern.match(key))})
 
 
+def _style(form, prefix, field):
+    value = clean_text(form.get(f"{prefix}-{field}"))
+    if value == CUSTOM:
+        return clean_text(form.get(f"{prefix}-{field}_custom"))
+    return value
+
+
 def _row(form, prefix, fields):
-    return {field: clean_text(form.get(f"{prefix}-{field}")) for field in fields}
+    row = {field: clean_text(form.get(f"{prefix}-{field}")) for field in fields}
+    row.update({field: _style(form, prefix, field) for field in STYLE_FIELDS})
+    row["hide"] = bool(form.get(f"{prefix}-hide"))
+    return row
 
 
-def _deleted(form, prefix):
-    return bool(form.get(f"{prefix}-delete"))
-
-
-def _parse_stream(stream, where, errors):
-    """Validate one stream in place; append a message per problem."""
-    if not stream["label"]:
-        errors.append(f"{where}: needs a label.")
+def _check_bin(row, where, errors):
+    """Validate one bin in place; append a message per problem."""
+    if not row["label"]:
+        errors.append(f"{where}: needs a name.")
     try:
-        stream["first_date"] = date.fromisoformat(stream["first_date"]).isoformat()
+        row["first_date"] = date.fromisoformat(row["first_date"]).isoformat()
     except ValueError:
         errors.append(f"{where}: needs a first collection date (YYYY-MM-DD).")
-    weeks = stream["every_weeks"]
+    weeks = row["every_weeks"]
     if weeks.isdecimal() and 1 <= int(weeks) <= MAX_EVERY_WEEKS:
-        stream["every_weeks"] = int(weeks)
+        row["every_weeks"] = int(weeks)
     else:
         errors.append(f"{where}: must repeat every 1 to {MAX_EVERY_WEEKS} weeks (a whole number).")
-    return stream
 
 
-def _parse_schedule(form, prefix, position, new_id, errors):
-    name = clean_text(form.get(f"{prefix}-name"))
-    rows = []
-    for n in _indices(form, f"{prefix}-streams"):
-        row_prefix = f"{prefix}-streams-{n}"
-        row = _row(form, row_prefix, STREAM_FIELDS)
-        if not _deleted(form, row_prefix) and any(
-            row[f] for f in ("label", "first_date", "every_weeks")
-        ):
-            rows.append((n, row))
-    if not name and not rows:
-        return None
-    if not name:
-        errors.append(f"Schedule {position} needs a name.")
-    streams = [
-        _parse_stream(row, f"{name or f'Schedule {position}'}, stream {number}", errors)
-        for number, (_, row) in enumerate(rows, start=1)
-    ]
-    schedule_id = clean_text(form.get(f"{prefix}-id")) or new_id()
-    return {"id": schedule_id, "name": name, "streams": streams}
-
-
-def parse_admin_form(form, new_id):
-    """``(config, errors)`` from the posted admin form. ``new_id()`` names a
-    new schedule. With errors, the config keeps what was typed so the page
-    can show it again; save it only when ``errors`` is empty."""
+def parse_admin_form(form):
+    """``(config, errors)`` from the posted admin form. With errors, the config
+    keeps what was typed so the page can show it again; save it only when
+    ``errors`` is empty. Schedule rows are only checked while the manual
+    schedule is the source, so a hidden section never blocks a save."""
     errors = []
+    source = form.get("source") if form.get("source") in SOURCES else "schedule"
+    calendar = clean_text(form.get("calendar"))
+    if source == "calendar" and not calendar:
+        errors.append("Choose your Home Assistant bin calendar.")
+
+    schedule = []
+    for n in _indices(form, "schedule"):
+        row = _row(form, f"schedule-{n}", BIN_FIELDS)
+        if any(row[field] for field in BIN_FIELDS):
+            schedule.append(row)
+    if source == "schedule":
+        for position, row in enumerate(schedule, start=1):
+            _check_bin(row, f"Bin {position}", errors)
+
     mappings = []
     for n in _indices(form, "mappings"):
-        prefix = f"mappings-{n}"
-        row = _row(form, prefix, MAPPING_FIELDS)
-        if row["match"] and not _deleted(form, prefix):
-            mappings.append({**row, "hide": bool(form.get(f"{prefix}-hide"))})
-    schedules = []
-    for position, n in enumerate(_indices(form, "schedules"), start=1):
-        prefix = f"schedules-{n}"
-        if _deleted(form, prefix):
-            continue
-        schedule = _parse_schedule(form, prefix, position, new_id, errors)
-        if schedule:
-            schedules.append(schedule)
-    return {"mappings": mappings, "schedules": schedules}, errors
+        row = _row(form, f"mappings-{n}", MAPPING_FIELDS)
+        if row["match"]:
+            mappings.append(row)
 
-
-def source_choices(config):
-    """The cell's Source dropdown entries for the saved schedules."""
-    return [
-        {"value": f"{SOURCE_PREFIX}{s['id']}", "label": f"Schedule: {s['name']}"}
-        for s in config["schedules"]
-    ]
+    config = {"source": source, "calendar": calendar, "schedule": schedule, "mappings": mappings}
+    return config, errors

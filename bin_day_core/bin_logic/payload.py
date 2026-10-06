@@ -9,7 +9,6 @@
 
 from datetime import timedelta
 
-from .config import SOURCE_PREFIX
 from .days import WINDOW_DAYS, collection_days, next_change_at
 from .palette import display_stream
 from .schedule import fixed_rule_events
@@ -24,18 +23,9 @@ def build_payload(events, now, cutoff, eink=False):
     return {"days": days, "next_change_at": next_change_at(now, cutoff, days).isoformat()}
 
 
-def fixed_rule_payload(schedule, mappings, now, cutoff, eink=False):
-    """Payload for a fixed-rule schedule. Raises ValueError for a bad rule."""
+def fixed_rule_payload(schedule, now, cutoff, eink=False):
+    """Payload for a manual schedule's bins (each carries its own icon and
+    colours). Raises ValueError naming a bin whose rule is invalid."""
     today = now.date()
-    events = fixed_rule_events(
-        schedule["streams"], today, today + timedelta(days=WINDOW_DAYS), mappings
-    )
+    events = fixed_rule_events(schedule, today, today + timedelta(days=WINDOW_DAYS))
     return build_payload(events, now, cutoff, eink)
-
-
-def find_schedule(config, source):
-    """The saved schedule a cell's ``schedule:<id>`` source names, or None."""
-    if not isinstance(source, str) or not source.startswith(SOURCE_PREFIX):
-        return None
-    schedule_id = source.removeprefix(SOURCE_PREFIX)
-    return next((s for s in config["schedules"] if s["id"] == schedule_id), None)

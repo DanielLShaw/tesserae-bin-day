@@ -1,4 +1,4 @@
-"""bin_day + bin_day_core in a real Tesserae app: sources, fetch and errors."""
+"""bin_day in a real Tesserae app: every cell shows Bin Day Core's source."""
 
 import json
 from datetime import datetime
@@ -10,7 +10,7 @@ import pytest
 TUE_8AM = datetime(2026, 10, 6, 8, 0, tzinfo=ZoneInfo("Europe/London"))
 
 
-def stream(label, first_date="2026-09-01", every_weeks=1):
+def bin_(label, first_date="2026-09-01", every_weeks=1, **extra):
     return {
         "label": label,
         "first_date": first_date,
@@ -18,10 +18,9 @@ def stream(label, first_date="2026-09-01", every_weeks=1):
         "icon": "",
         "body_colour": "",
         "lid_colour": "",
+        "hide": False,
+        **extra,
     }
-
-
-HOME = {"id": "home01", "name": "Home", "streams": [stream("Refuse")]}
 
 
 @pytest.fixture
@@ -33,9 +32,11 @@ def core(registry, monkeypatch):
 
 @pytest.fixture
 def save(app, core):
-    def _save(*schedules, mappings=()):
+    def _save(**config):
         with app.app_context():
-            core.save_config({"mappings": list(mappings), "schedules": list(schedules)})
+            core.save_config(
+                {"source": "schedule", "calendar": "", "schedule": [], "mappings": [], **config}
+            )
 
     return _save
 
@@ -49,36 +50,10 @@ def cell_data(client, size="sm", **opts):
     return json.loads(body[start : body.index("'", start)])
 
 
-def widget_choices(app, registry, name):
-    with app.app_context():
-        return registry.get("bin_day").server_module.choices(name)
-
-
-class TestSources:
-    def test_source_dropdown_lists_saved_schedules(self, app, registry, save):
-        save(HOME, {"id": "c2", "name": "Cottage", "streams": []})
-        assert widget_choices(app, registry, "sources") == [
-            {"value": "schedule:home01", "label": "Schedule: Home"},
-            {"value": "schedule:c2", "label": "Schedule: Cottage"},
-        ]
-
-    def test_unknown_choices_key_gives_nothing(self, app, registry, save):
-        save(HOME)
-        assert widget_choices(app, registry, "colours") == []
-
-    def test_no_sources_without_the_core_plugin(self, app, registry, monkeypatch):
-        monkeypatch.delitem(registry.plugins, "bin_day_core")
-        assert widget_choices(app, registry, "sources") == []
-
-    def test_corrupt_config_file_gives_no_sources_rather_than_crashing(self, app, registry):
-        (registry.get("bin_day_core").data_dir / "config.json").write_text("{not json")
-        assert widget_choices(app, registry, "sources") == []
-
-
-class TestFetch:
+class TestManualSchedule:
     def test_cell_shows_the_schedules_collections(self, client, save):
-        save(HOME)
-        data = cell_data(client, source="schedule:home01", cutoff="10:00")
+        save(schedule=[bin_("Refuse")])
+        data = cell_data(client, cutoff="10:00")
         assert [(d["date"], d["days_until"]) for d in data["days"]] == [
             ("2026-10-06", 0),
             ("2026-10-13", 7),
@@ -87,36 +62,46 @@ class TestFetch:
         assert data["next_change_at"] == "2026-10-06T10:00:00+01:00"
 
     def test_cutoff_option_marks_todays_collection_done(self, client, save):
-        save(HOME)
-        data = cell_data(client, source="schedule:home01", cutoff="07:00")
-        assert [d["date"] for d in data["days"]] == ["2026-10-13"]
+        save(schedule=[bin_("Refuse")])
+        assert [d["date"] for d in cell_data(client, cutoff="07:00")["days"]] == ["2026-10-13"]
 
-    def test_title_mappings_from_core_apply(self, client, save):
-        save(HOME, mappings=[{"match": "Refuse", "label": "General waste"}])
-        data = cell_data(client, source="schedule:home01")
-        assert data["days"][0]["streams"][0]["label"] == "General waste"
+    def test_a_bins_own_icon_and_colours_apply(self, client, save):
+        save(schedule=[bin_("Green", icon="leaf", body_colour="brown")])
+        [stream] = cell_data(client)["days"][0]["streams"]
+        assert (stream["id"], stream["icon"], stream["mono_fill"]) == ("garden", "leaf", "hatched")
+
+    def test_a_hidden_bin_is_left_out(self, client, save):
+        save(schedule=[bin_("Refuse"), bin_("Green", hide=True)])
+        labels = [s["label"] for d in cell_data(client)["days"] for s in d["streams"]]
+        assert set(labels) == {"Refuse"}
 
     def test_colour_for_e_ink_option_sends_exact_ink_colours(self, client, save):
-        save(HOME)
-        eink = cell_data(client, source="schedule:home01", colours="eink")
-        screen = cell_data(client, source="schedule:home01", colours="colour")
-        assert eink["days"][0]["streams"][0]["body_colour"] == "#000000"
-        assert screen["days"][0]["streams"][0]["body_colour"] != "#000000"
+        save(schedule=[bin_("Refuse")])
+        eink = cell_data(client, colours="eink")["days"][0]["streams"][0]
+        screen = cell_data(client, colours="colour")["days"][0]["streams"][0]
+        assert eink["body_colour"] == "#000000"
+        assert screen["body_colour"] != "#000000"
 
-    def test_no_source_chosen_asks_for_one(self, client, save, core):
-        save(HOME)
-        assert cell_data(client)["error"].startswith("Choose a bin schedule")
+    def test_no_bins_yet_asks_for_them(self, client, save):
+        save()
+        assert cell_data(client)["error"].startswith("Add your bins in Bin Day Core")
 
-    def test_deleted_schedule_is_reported(self, client, save):
-        save(HOME)
-        assert "no longer exists" in cell_data(client, source="schedule:gone")["error"]
-
-    def test_invalid_saved_schedule_names_the_stream(self, client, save):
-        save({"id": "home01", "name": "Home", "streams": [stream("Refuse", every_weeks=0)]})
-        error = cell_data(client, source="schedule:home01")["error"]
-        assert error.startswith("Bin schedule 'Home' needs fixing in Bin Day Core")
+    def test_an_invalid_saved_bin_is_named(self, client, save):
+        save(schedule=[bin_("Refuse", every_weeks=0)])
+        error = cell_data(client)["error"]
+        assert error.startswith("Fix your bins in Bin Day Core")
         assert "Refuse" in error
+
+
+class TestOtherErrors:
+    def test_calendar_source_with_no_calendar_chosen(self, client, save):
+        save(source="calendar")
+        assert cell_data(client)["error"].startswith("Choose your bin calendar in Bin Day Core")
 
     def test_missing_core_plugin_is_reported(self, client, registry, monkeypatch):
         monkeypatch.delitem(registry.plugins, "bin_day_core")
-        assert "Bin Day Core" in cell_data(client, source="schedule:home01")["error"]
+        assert "Bin Day Core" in cell_data(client)["error"]
+
+    def test_corrupt_config_file_reads_as_no_bins(self, client, registry, core):
+        (registry.get("bin_day_core").data_dir / "config.json").write_text("{not json")
+        assert cell_data(client)["error"].startswith("Add your bins in Bin Day Core")

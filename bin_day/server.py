@@ -1,4 +1,4 @@
-"""Bin Day widget: delegates to the Bin Day Core plugin for its data."""
+"""Bin Day widget: shows the source chosen in the Bin Day Core plugin."""
 
 from flask import current_app
 
@@ -10,18 +10,10 @@ def _core():
     return plugin.server_module if plugin is not None else None
 
 
-def choices(name):
-    core = _core()
-    return core.choices(name) if core is not None else []
-
-
 def fetch(options, settings, *, ctx):
     core = _core()
     if core is None:
         return {"error": MISSING_CORE}
     return core.collections(
-        options.get("source"),
-        options.get("cutoff"),
-        fresh=bool(ctx.get("fresh")),
-        colours=options.get("colours"),
+        options.get("cutoff"), fresh=bool(ctx.get("fresh")), colours=options.get("colours")
     )

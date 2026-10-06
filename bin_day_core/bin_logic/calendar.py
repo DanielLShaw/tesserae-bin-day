@@ -23,12 +23,12 @@ def _utc(moment):
     return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def calendar_query_range(now):
+def calendar_query_range(now, days=QUERY_DAYS):
     """``(start, end)`` for the events query: local midnight today to local
-    midnight QUERY_DAYS later, as UTC timestamps."""
+    midnight ``days`` later, as UTC timestamps."""
     today = now.date()
     start = datetime.combine(today, time(0), now.tzinfo)
-    end = datetime.combine(today + timedelta(days=QUERY_DAYS), time(0), now.tzinfo)
+    end = datetime.combine(today + timedelta(days=days), time(0), now.tzinfo)
     return _utc(start), _utc(end)
 
 
@@ -80,3 +80,12 @@ def cache_state(fetched_at, now):
     if age < timedelta(0) or age >= CACHE_USABLE:
         return "expired"
     return "fresh" if age < CACHE_FRESH else "usable"
+
+
+def distinct_titles(events):
+    """Each bin title in ``events`` once, in first-seen order, ignoring case:
+    the rows Bin Day Core offers for styling a calendar's bins."""
+    titles = {}
+    for _, title in events_by_date(events, UTC):
+        titles.setdefault(title.casefold(), title)
+    return list(titles.values())

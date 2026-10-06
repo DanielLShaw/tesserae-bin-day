@@ -1,27 +1,27 @@
-"""Screenshot scenarios. Each has its own Bin Day Core config (one schedule
-plus any title mappings), a pinned clock, and the cell options to render.
+"""Screenshot scenarios. Each has its own Bin Day Core config (a manual
+schedule of bins), a pinned clock, and the cell options to render.
 
 ``expect`` is what the cell should show, checked by
 tests/test_preview_scenarios.py: ``[(days_until, [icon, ...]), ...]`` for
-each collection day, or ``"error"``.
+each collection day, or the start of the error tile's message.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 LONDON = ZoneInfo("Europe/London")
-SCHEDULE_ID = "home"
 
 
-def _stream(label, first_date, every_weeks):
+def _stream(label, first_date, every_weeks, icon=""):
     return {
         "label": label,
         "first_date": first_date,
         "every_weeks": every_weeks,
-        "icon": "",
+        "icon": icon,
         "body_colour": "",
         "lid_colour": "",
+        "hide": False,
     }
 
 
@@ -29,14 +29,11 @@ def _at(day, hour, minute=0):
     return datetime(2026, 10, day, hour, minute, tzinfo=LONDON)
 
 
-# Liverpool's WCS titles; the owner maps the bare "Green" to the garden leaf.
+# Liverpool's WCS titles; the owner gives the bare "Green" the garden leaf.
 LIVERPOOL = [
     _stream("Refuse", "2026-10-07", 2),
-    _stream("Green", "2026-10-07", 2),
+    _stream("Green", "2026-10-07", 2, icon="leaf"),
     _stream("Recycling", "2026-10-12", 2),
-]
-LIVERPOOL_MAPPINGS = [
-    {"match": "Green", "label": "", "icon": "leaf", "body_colour": "", "lid_colour": ""}
 ]
 
 
@@ -47,21 +44,18 @@ class Scenario:
     streams: list
     now: datetime
     expect: object
-    mappings: list = field(default_factory=list)
     cutoff: str = "10:00"
     colours: str = "auto"
-    schedule_deleted: bool = False
+    source: str = "schedule"
     theme: str | None = None  # render in this theme whatever the run's
 
     @property
     def config(self):
-        schedule = {"id": SCHEDULE_ID, "name": self.name, "streams": self.streams}
-        return {"mappings": self.mappings, "schedules": [schedule]}
+        return {"source": self.source, "calendar": "", "schedule": self.streams, "mappings": []}
 
     @property
     def options(self):
-        schedule_id = "deleted" if self.schedule_deleted else SCHEDULE_ID
-        return {"source": f"schedule:{schedule_id}", "cutoff": self.cutoff, "colours": self.colours}
+        return {"cutoff": self.cutoff, "colours": self.colours}
 
 
 SCENARIOS = [
@@ -71,7 +65,6 @@ SCENARIOS = [
         LIVERPOOL,
         _at(6, 8),
         [(1, ["trash", "leaf"]), (6, ["recycle"])],
-        mappings=LIVERPOOL_MAPPINGS,
     ),
     Scenario(
         "dark-mode",
@@ -79,7 +72,6 @@ SCENARIOS = [
         LIVERPOOL,
         _at(6, 8),
         [(1, ["trash", "leaf"]), (6, ["recycle"])],
-        mappings=LIVERPOOL_MAPPINGS,
         theme="dark",
     ),
     Scenario(
@@ -88,7 +80,6 @@ SCENARIOS = [
         LIVERPOOL,
         _at(6, 8),
         [(1, ["trash", "leaf"]), (6, ["recycle"])],
-        mappings=LIVERPOOL_MAPPINGS,
         colours="eink",
     ),
     Scenario(
@@ -97,7 +88,6 @@ SCENARIOS = [
         LIVERPOOL,
         _at(7, 8),
         [(0, ["trash", "leaf"]), (5, ["recycle"])],
-        mappings=LIVERPOOL_MAPPINGS,
     ),
     Scenario(
         "after-cutoff",
@@ -105,7 +95,6 @@ SCENARIOS = [
         LIVERPOOL,
         _at(7, 11),
         [(5, ["recycle"])],
-        mappings=LIVERPOOL_MAPPINGS,
     ),
     Scenario(
         "colour-names",
@@ -247,10 +236,10 @@ SCENARIOS = [
     ),
     Scenario(
         "error",
-        "The cell's schedule was deleted: error tile.",
-        LIVERPOOL,
+        "Core set to a Home Assistant calendar but none chosen: error tile.",
+        [],
         _at(6, 8),
-        "error",
-        schedule_deleted=True,
+        "Choose your bin calendar",
+        source="calendar",
     ),
 ]

@@ -26,18 +26,19 @@ def occurrences(first, every_weeks, start, end):
 def fixed_rule_events(streams, start, end, mappings=()):
     """``(date, stream)`` events for a fixed-rule schedule's streams within
     ``start``..``end``. A stream's own icon and colours layer over any title
-    mapping, and streams the user has hidden are left out. Raises ValueError
+    mapping, and streams the user has hidden (their own eye button, or a
+    mapping's) are left out. Raises ValueError
     naming the stream if its rule is invalid."""
     events = []
     for config in streams:
         label = clean_text(config.get("label"))
-        if is_hidden(label, mappings):
+        if config.get("hide") or is_hidden(label, mappings):
             continue
         try:
             first = date.fromisoformat(config.get("first_date"))
             dates = occurrences(first, config.get("every_weeks"), start, end)
         except (TypeError, ValueError) as err:
-            raise ValueError(f"Schedule stream {label!r}: {err}") from err
+            raise ValueError(f"bin {label!r}: {err}") from err
         stream = resolve_stream(label, mappings, overrides=config)
         events.extend((day, stream) for day in dates)
     return events

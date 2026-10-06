@@ -31,16 +31,8 @@ def test_both_plugins_share_one_version():
     assert manifest("bin_day")["version"] == manifest("bin_day_core")["version"]
 
 
-def test_cell_editor_offers_saved_schedules_as_sources(app, registry):
-    from app.page_routes import _materialize_cell_options
-
-    with app.app_context():
-        registry.get("bin_day_core").server_module.save_config(
-            {"mappings": [], "schedules": [{"id": "home01", "name": "Home", "streams": []}]}
-        )
-        options = _materialize_cell_options([registry.get("bin_day")])["bin_day"]
-    source = next(o for o in options if o["name"] == "source")
-    assert source["choices"] == [{"value": "schedule:home01", "label": "Schedule: Home"}]
+def test_cells_have_no_source_option_core_holds_it():
+    assert "source" not in {o["name"] for o in manifest("bin_day")["cell_options"]}
 
 
 def test_every_cutoff_choice_is_honoured_and_default_is_ten():

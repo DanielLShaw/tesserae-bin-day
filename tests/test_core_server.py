@@ -48,11 +48,21 @@ def core_module(registry):
 def test_config_that_is_not_an_object_reads_as_empty(app, registry, content):
     (registry.get("bin_day_core").data_dir / "config.json").write_text(content)
     with app.app_context():
-        assert core_module(registry).load_config() == {"mappings": [], "schedules": []}
+        assert core_module(registry).load_config() == {
+            "source": "schedule",
+            "calendar": "",
+            "schedule": [],
+            "mappings": [],
+        }
 
 
 def test_saved_config_round_trips(app, registry):
-    config = {"mappings": [{"match": "Green", "icon": "leaf"}], "schedules": []}
+    config = {
+        "source": "calendar",
+        "calendar": "calendar.bins",
+        "schedule": [],
+        "mappings": [{"match": "Green", "icon": "leaf"}],
+    }
     with app.app_context():
         core_module(registry).save_config(config)
         assert core_module(registry).load_config() == config
@@ -70,3 +80,16 @@ def test_now_falls_back_to_local_time_if_the_host_helper_is_missing(app, registr
     monkeypatch.setitem(sys.modules, "app.tz_resolve", None)
     with app.app_context():
         assert core_module(registry)._now().utcoffset() is not None
+
+
+def test_an_unknown_source_or_odd_fields_read_as_defaults(app, registry):
+    (registry.get("bin_day_core").data_dir / "config.json").write_text(
+        '{"source": "pigeon", "calendar": 7, "schedule": "x", "mappings": null}'
+    )
+    with app.app_context():
+        assert core_module(registry).load_config() == {
+            "source": "schedule",
+            "calendar": "",
+            "schedule": [],
+            "mappings": [],
+        }

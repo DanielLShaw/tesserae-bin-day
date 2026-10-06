@@ -1,23 +1,31 @@
 """Bin Day Core: shared config and data for the bin_day widget.
 
-Holds the title mappings and fixed-rule schedules (edited on this plugin's
-admin page) and builds the collection-days payload a bin_day cell shows,
-from a fixed-rule schedule or a Home Assistant calendar (read through the
-bundled Home Assistant Core plugin). The bin_day widget reaches this module
+Holds the one source every bin_day cell shows, chosen on this plugin's admin
+page: a manual schedule of bins, or a Home Assistant calendar (read through
+the bundled Home Assistant Core plugin) styled by title mappings. Builds the
+collection-days payload a cell shows; the bin_day widget reaches this module
 through the plugin registry.
 """
 
 import importlib.util
 import json
 import re
-import secrets
 import sys
 import urllib.error
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 _HERE = Path(__file__).resolve().parent
 
@@ -42,12 +50,14 @@ def _load_logic():
 
 logic = _load_logic()
 
-EMPTY_CONFIG = {"mappings": [], "schedules": []}
-CALENDAR_PREFIX = "calendar."
+DEFAULT_CONFIG = {"source": "schedule", "calendar": "", "schedule": [], "mappings": []}
+DISCOVERY_DAYS = 56  # how far ahead the admin page looks for a calendar's bin titles
 NEEDS_HA_CORE = (
     "Needs Home Assistant Core: install it, then set your Home Assistant URL "
     "and access token in Settings, Plugins, Home Assistant Core."
 )
+NEEDS_BINS = "Add your bins in Bin Day Core (Plugins, Bin Day Core)."
+NEEDS_CALENDAR = "Choose your bin calendar in Bin Day Core (Plugins, Bin Day Core)."
 
 
 def _data_dir():
@@ -59,14 +69,20 @@ def _config_path():
 
 
 def load_config():
-    """The saved config; empty when there is none or it cannot be read."""
+    """The saved config, with defaults for anything missing or unreadable."""
     try:
-        config = json.loads(_config_path().read_text(encoding="utf-8"))
+        raw = json.loads(_config_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {"mappings": [], "schedules": []}
-    if not isinstance(config, dict):
-        return {"mappings": [], "schedules": []}
-    return {key: config.get(key) or [] for key in EMPTY_CONFIG}
+        raw = {}
+    if not isinstance(raw, dict):
+        raw = {}
+    calendar = raw.get("calendar")
+    return {
+        "source": raw.get("source") if raw.get("source") in logic.config.SOURCES else "schedule",
+        "calendar": calendar if isinstance(calendar, str) else "",
+        "schedule": raw.get("schedule") if isinstance(raw.get("schedule"), list) else [],
+        "mappings": raw.get("mappings") if isinstance(raw.get("mappings"), list) else [],
+    }
 
 
 def _write_json(path, value):
@@ -91,27 +107,10 @@ def _now():
 
 
 def _ha_core():
+    """Home Assistant Core's module once it is installed and connected, else None."""
     plugin = current_app.config["PLUGIN_REGISTRY"].get("ha_core")
-    return plugin.server_module if plugin is not None else None
-
-
-def _calendar_choices():
-    """HA calendar entities, once Home Assistant Core is connected. An
-    unreachable HA shows as Home Assistant Core's own guidance entry."""
-    ha = _ha_core()
-    if ha is None or not ha.is_configured():
-        return []
-    return [
-        {**entry, "label": f"Calendar: {entry['label']}"}
-        for entry in ha.entity_choices(domains=("calendar",))
-    ]
-
-
-def choices(name):
-    """Dropdown entries for the bin_day cell editor: schedules, then calendars."""
-    if name != "sources":
-        return []
-    return logic.source_choices(load_config()) + _calendar_choices()
+    ha = plugin.server_module if plugin is not None else None
+    return ha if ha is not None and ha.is_configured() else None
 
 
 def _cache_path(entity_id):
@@ -131,8 +130,8 @@ def _read_cache(entity_id):
     return cached
 
 
-def _fetch_events(ha, entity_id, now):
-    start, end = logic.calendar_query_range(now)
+def _fetch_events(ha, entity_id, now, days=logic.calendar.QUERY_DAYS):
+    start, end = logic.calendar_query_range(now, days)
     events = ha.request_json(f"/api/calendars/{quote(entity_id)}?start={start}&end={end}")
     if not isinstance(events, list):
         raise ValueError("Home Assistant sent something other than a list of events")
@@ -151,11 +150,11 @@ def _calendar_missing(ha, entity_id, err):
     return False
 
 
-def _calendar_payload(entity_id, cutoff, fresh, eink):
+def _calendar_payload(entity_id, mappings, cutoff, fresh, eink):
     """Payload from a Home Assistant calendar. Answers are cached for an hour;
     if HA fails, a cached answer up to a day old is used instead."""
     ha = _ha_core()
-    if ha is None or not ha.is_configured():
+    if ha is None:
         return {"error": NEEDS_HA_CORE}
     now = _now()
     cached = _read_cache(entity_id)
@@ -169,7 +168,7 @@ def _calendar_payload(entity_id, cutoff, fresh, eink):
             if _calendar_missing(ha, entity_id, err):
                 return {
                     "error": f"Calendar {entity_id} wasn't found in Home Assistant. If it "
-                    "was renamed, pick it again in this cell's Source option."
+                    "was renamed, pick it again in Bin Day Core."
                 }
             if state == "expired":
                 return {
@@ -179,32 +178,30 @@ def _calendar_payload(entity_id, cutoff, fresh, eink):
             events = cached["events"]
         else:
             _write_json(_cache_path(entity_id), {"fetched_at": now.isoformat(), "events": events})
-    mappings = load_config()["mappings"]
     return logic.calendar_payload(events, mappings, now, logic.parse_cutoff(cutoff), eink)
 
 
-def collections(source, cutoff, fresh=False, colours=None):
-    """The bin_day payload for a cell's ``source``, ``cutoff`` and ``colours``
-    options, or ``{"error": ...}`` for the cell's error tile. ``fresh`` skips
-    the Home Assistant cache. Never raises."""
+def collections(cutoff, fresh=False, colours=None):
+    """The bin_day payload for Bin Day Core's source and a cell's ``cutoff``
+    and ``colours`` options, or ``{"error": ...}`` for the cell's error tile.
+    ``fresh`` skips the Home Assistant cache. Never raises."""
     eink = colours == "eink"
-    if not source:
-        return {"error": "Choose a bin schedule or calendar in this cell's Source option."}
-    if source.startswith(CALENDAR_PREFIX):
-        return _calendar_payload(source, cutoff, fresh, eink)
     config = load_config()
-    schedule = logic.find_schedule(config, source)
-    if schedule is None:
-        return {
-            "error": "This cell's bin schedule no longer exists. Pick another in its Source option."
-        }
+    if config["source"] == "calendar":
+        if not config["calendar"]:
+            return {"error": NEEDS_CALENDAR}
+        return _calendar_payload(config["calendar"], config["mappings"], cutoff, fresh, eink)
+    if not config["schedule"]:
+        return {"error": NEEDS_BINS}
     try:
         return logic.fixed_rule_payload(
-            schedule, config["mappings"], _now(), logic.parse_cutoff(cutoff), eink
+            config["schedule"], _now(), logic.parse_cutoff(cutoff), eink
         )
     except ValueError as err:
-        return {"error": f"Bin schedule '{schedule['name']}' needs fixing in Bin Day Core: {err}"}
+        return {"error": f"Fix your bins in Bin Day Core: {err}"}
 
+
+# ---- admin page --------------------------------------------------------------
 
 ICON_CHOICES = [("", "Automatic")] + [
     (icon, material.capitalize()) for material, (icon, _) in logic.resolve.MATERIAL_STYLES.items()
@@ -212,19 +209,76 @@ ICON_CHOICES = [("", "Automatic")] + [
 COLOUR_CHOICES = [("", "Automatic")] + [
     (name, name.replace("_", " ").capitalize()) for name in logic.palette.SCREEN_PALETTE
 ]
+_STYLE_CHOICES = {
+    "icon": {value for value, _ in ICON_CHOICES},
+    "body_colour": {value for value, _ in COLOUR_CHOICES},
+    "lid_colour": {value for value, _ in COLOUR_CHOICES},
+}
+
+
+def _row_view(row, **extra):
+    """A saved row for the page: each style as a dropdown choice, or "custom"
+    with the typed value alongside."""
+    view = {**row, **extra}
+    for field, known in _STYLE_CHOICES.items():
+        value = row.get(field) or ""
+        custom = value not in known
+        view[f"{field}_choice"] = logic.config.CUSTOM if custom else value
+        view[f"{field}_custom"] = value if custom else ""
+    return view
+
+
+def _calendar_options():
+    """``(options, problem)``: HA's calendar entities as ``(value, label)``, or
+    a sentence saying why there are none."""
+    ha = _ha_core()
+    if ha is None:
+        return [], "unconfigured"
+    entries = ha.entity_choices(domains=("calendar",))
+    options = [(e["value"], e["label"]) for e in entries if e["value"]]
+    return options, (None if options or not entries else "unreachable")
+
+
+def discover_titles(entity_id):
+    """``(titles, error)``: each bin title in the calendar's next weeks."""
+    ha = _ha_core()
+    if ha is None:
+        return [], NEEDS_HA_CORE
+    try:
+        events = _fetch_events(ha, entity_id, _now(), DISCOVERY_DAYS)
+    except Exception as err:  # noqa: BLE001 - surfaced on the page, never raised
+        return [], f"Couldn't read {entity_id} from Home Assistant: {ha.coerce_error(err)}"
+    return logic.distinct_titles(events), None
+
+
+def _mapping_views(config, titles):
+    """A row per title in the calendar, carrying its saved mapping, then the
+    saved mappings for other names as editable rows."""
+    saved = {m["match"].casefold(): m for m in config["mappings"]}
+    blank = dict.fromkeys(("label", *_STYLE_CHOICES), "")
+    rows = []
+    for title in titles:
+        row = saved.pop(title.casefold(), None) or {**blank, "hide": False}
+        rows.append(_row_view({**row, "match": title}, discovered=True))
+    rows += [_row_view(m, discovered=False) for m in saved.values()]
+    return rows
 
 
 def _render_admin(config, errors=()):
-    """The admin page for ``config``, with a blank row for each kind of add."""
-    blank_stream = dict.fromkeys(logic.config.STREAM_FIELDS, "")
-    schedules = [{**s, "streams": [*s["streams"], blank_stream]} for s in config["schedules"]]
-    schedules.append({"id": "", "name": "", "streams": [blank_stream]})
-    mappings = [*config["mappings"], dict.fromkeys(logic.config.MAPPING_FIELDS, "")]
+    options, ha_problem = _calendar_options()
+    titles, discovery_error = [], None
+    if config["source"] == "calendar" and config["calendar"] and not ha_problem:
+        titles, discovery_error = discover_titles(config["calendar"])
     return render_template(
         "bin_day_core/index.html",
-        schedules=schedules,
-        mappings=mappings,
+        config=config,
         errors=errors,
+        calendar_options=options,
+        ha_problem=ha_problem,
+        discovery_error=discovery_error,
+        schedule_rows=[_row_view(row) for row in config["schedule"]],
+        mapping_rows=_mapping_views(config, titles),
+        blank_row=_row_view(dict.fromkeys(("label", *_STYLE_CHOICES), ""), hide=False),
         icon_choices=ICON_CHOICES,
         colour_choices=COLOUR_CHOICES,
         max_every_weeks=logic.schedule.MAX_EVERY_WEEKS,
@@ -240,11 +294,16 @@ def blueprint():
 
     @bp.post("/save")
     def save():
-        config, errors = logic.parse_admin_form(request.form, lambda: secrets.token_hex(4))
+        config, errors = logic.parse_admin_form(request.form)
         if errors:
             return _render_admin(config, errors), 400
         save_config(config)
         flash("Saved.", "ok")
         return redirect(url_for("bin_day_core_admin.index"))
+
+    @bp.get("/titles")
+    def titles():
+        found, error = discover_titles(request.args.get("calendar", ""))
+        return jsonify({"titles": found, **({"error": error} if error else {})})
 
     return bp

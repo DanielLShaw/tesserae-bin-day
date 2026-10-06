@@ -2,42 +2,94 @@
 {% from "_components.html" import card_head, button %}
 {% block title %}Bin Day Core, Tesserae{% endblock %}
 
-{% macro choice_select(name, value, options, label) -%}
-<select name="{{ name }}" id="{{ name }}" aria-label="{{ label }}">
-  {%- for option_value, option_label in options %}
-  <option value="{{ option_value }}"{% if option_value == value %} selected{% endif %}>{{ option_label }}</option>
-  {%- endfor %}
-  {%- if value and value not in options | map('first') %}
-  <option value="{{ value }}" selected>{{ value }}</option>
-  {%- endif %}
-</select>
+{% block head_extra %}
+<link rel="stylesheet" href="/plugins/bin_day_core/static/admin.css">
+<script src="/plugins/bin_day_core/static/admin.js" defer></script>
+{% endblock %}
+
+{# One icon or colour control: a dropdown with "Custom…", revealing a field. #}
+{% macro style_field(prefix, row, field, label, options, kind) -%}
+{% set choice = row[field ~ '_choice'] %}
+{% set custom = row[field ~ '_custom'] %}
+<div class="field bd-style" data-custom-field>
+  <select name="{{ prefix }}-{{ field }}" aria-label="{{ label }}" data-custom-select>
+    {%- for option_value, option_label in options %}
+    <option value="{{ option_value }}"{% if option_value == choice %} selected{% endif %}>{{ option_label }}</option>
+    {%- endfor %}
+    <option value="custom"{% if choice == 'custom' %} selected{% endif %}>Custom…</option>
+  </select>
+  <div class="bd-custom"{% if choice != 'custom' %} hidden{% endif %}>
+    {%- if kind == 'icon' %}
+    <input type="text" name="{{ prefix }}-{{ field }}_custom" value="{{ custom }}" placeholder="armchair"
+           aria-label="{{ label }} name" autocomplete="off" spellcheck="false" data-icon-input>
+    <i class="ph-bold ph-{{ custom or 'question' }} bd-icon-preview" aria-hidden="true"></i>
+    {%- else %}
+    <input type="color" value="{{ custom if custom|length == 7 else '#808080' }}" aria-label="{{ label }} picker" data-colour-picker>
+    <input type="text" name="{{ prefix }}-{{ field }}_custom" value="{{ custom }}" placeholder="#7a3e9d"
+           pattern="#[0-9a-fA-F]{6}" aria-label="{{ label }} hex code" autocomplete="off" spellcheck="false" data-colour-hex>
+    {%- endif %}
+  </div>
+</div>
 {%- endmacro %}
 
 {% macro style_cells(prefix, row) -%}
-<td>{{ choice_select(prefix ~ '-icon', row.icon, icon_choices, 'Icon') }}</td>
-<td>{{ choice_select(prefix ~ '-body_colour', row.body_colour, colour_choices, 'Bin colour') }}</td>
-<td>{{ choice_select(prefix ~ '-lid_colour', row.lid_colour, colour_choices, 'Lid colour') }}</td>
+{{ style_field(prefix, row, 'icon', 'Icon', icon_choices, 'icon') }}
+{{ style_field(prefix, row, 'body_colour', 'Bin colour', colour_choices, 'colour') }}
+{{ style_field(prefix, row, 'lid_colour', 'Lid colour', colour_choices, 'colour') }}
+{%- endmacro %}
+
+{# The eye toggle and, where a row can go, the remove button. #}
+{% macro row_actions(prefix, row, removable=True) -%}
+<div class="bd-actions">
+  <input type="hidden" name="{{ prefix }}-hide" value="{{ 'on' if row.hide else '' }}" data-hide-input>
+  <button type="button" class="ghost bd-icon-btn" data-toggle-hide aria-pressed="{{ 'true' if row.hide else 'false' }}"
+          title="Show or hide this collection on the widget" aria-label="Show or hide">
+    <i class="ph ph-{{ 'eye-slash' if row.hide else 'eye' }}" aria-hidden="true"></i>
+  </button>
+  {%- if removable %}
+  <button type="button" class="ghost danger bd-icon-btn" data-remove-row title="Remove" aria-label="Remove">
+    <i class="ph ph-x" aria-hidden="true"></i>
+  </button>
+  {%- else %}
+  <span class="bd-icon-spacer" aria-hidden="true"></span>
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{% macro bin_row(prefix, row) -%}
+<li class="bd-row bd-bin{% if row.hide %} is-disabled{% endif %}" data-row>
+  <div class="field"><input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="Refuse" aria-label="Bin name"></div>
+  <div class="field"><input type="date" name="{{ prefix }}-first_date" value="{{ row.first_date }}" aria-label="First collection"></div>
+  <div class="field"><input type="number" name="{{ prefix }}-every_weeks" value="{{ row.every_weeks }}" min="1" max="{{ max_every_weeks }}" step="1" placeholder="1" aria-label="Every (weeks)"></div>
+  {{ style_cells(prefix, row) }}
+  {{ row_actions(prefix, row) }}
+</li>
+{%- endmacro %}
+
+{% macro mapping_row(prefix, row) -%}
+<li class="bd-row bd-mapping{% if row.hide %} is-disabled{% endif %}" data-row>
+  {%- if row.discovered %}
+  <div class="bd-title">
+    <input type="hidden" name="{{ prefix }}-match" value="{{ row.match }}" data-title-input>
+    <span data-title-text>{{ row.match }}</span>
+  </div>
+  {%- else %}
+  <div class="field"><input type="text" name="{{ prefix }}-match" value="{{ row.match }}" placeholder="Name contains…" aria-label="Name contains"></div>
+  {%- endif %}
+  <div class="field"><input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="(as is)" aria-label="Show as"></div>
+  {{ style_cells(prefix, row) }}
+  {{ row_actions(prefix, row, removable=not row.discovered) }}
+</li>
 {%- endmacro %}
 
 {% block main %}
 <div class="page-head">
   <h1><i class="ph-bold ph-trash" aria-hidden="true"></i> Bin Day Core</h1>
-  <p class="page-blurb">Bin schedules and title mappings for the Bin Day widget. Each Bin Day cell
-    picks a schedule from this page, or a Home Assistant calendar, in its Source option.</p>
+  <p class="page-blurb">Where every Bin Day widget gets its bin collections from, and how each bin looks.</p>
 </div>
 
-<section class="card">
-  {{ card_head('Home Assistant calendars', icon_name='house-line', level=2) }}
-  <p class="field-help">Connect Home Assistant Core (Settings, Plugins, Home Assistant Core) and
-    every calendar entity appears in a Bin Day cell's Source option, no schedule needed. With the
-    Waste Collection Schedule integration, each event title is a bin name: add a title mapping
-    below for any name that doesn't pick up the right icon or colour, such as Liverpool's "Green".
-    Waste Collection Schedule's own <code>customize</code> alias option can rename them at source
-    too.</p>
-</section>
-
 {% if errors %}
-<section class="card" role="alert">
+<section class="card bd-errors" role="alert">
   {{ card_head('Nothing saved yet', icon_name='warning-circle', level=2) }}
   <ul>
     {% for error in errors %}<li>{{ error }}</li>{% endfor %}
@@ -45,72 +97,95 @@
 </section>
 {% endif %}
 
-<form method="post" action="{{ url_for('bin_day_core_admin.save') }}">
-  {% for schedule in schedules %}
-  {% set s = 'schedules-' ~ loop.index0 %}
+<form method="post" action="{{ url_for('bin_day_core_admin.save') }}" class="form bd-form" data-bd-form>
   <section class="card">
-    {{ card_head(schedule.name or 'New schedule', icon_name='calendar-dots', level=2) }}
-    <input type="hidden" name="{{ s }}-id" value="{{ schedule.id }}">
-    <div class="field">
-      <label for="{{ s }}-name">Schedule name</label>
-      <input type="text" id="{{ s }}-name" name="{{ s }}-name" value="{{ schedule.name }}" placeholder="Home">
-      {% if not schedule.id %}<p class="field-help">Fill in a name and a first bin to add a schedule.</p>{% endif %}
+    {{ card_head('Source', icon_name='plugs-connected', level=2) }}
+    <div class="bd-sources" role="radiogroup" aria-label="Source">
+      <label class="bd-source">
+        <input type="radio" name="source" value="calendar"{% if config.source == 'calendar' %} checked{% endif %} data-source-radio>
+        <i class="ph ph-house-line" aria-hidden="true"></i>
+        <span><strong>Home Assistant calendar</strong>
+          <small>Waste Collection Schedule's, or any calendar in Home Assistant.</small></span>
+      </label>
+      <label class="bd-source">
+        <input type="radio" name="source" value="schedule"{% if config.source == 'schedule' %} checked{% endif %} data-source-radio>
+        <i class="ph ph-calendar-dots" aria-hidden="true"></i>
+        <span><strong>Manual schedule</strong>
+          <small>Each bin's first collection and how often it repeats.</small></span>
+      </label>
     </div>
-    <table class="table">
-      <thead>
-        <tr><th>Bin</th><th>First collection</th><th>Every (weeks)</th><th>Icon</th><th>Bin colour</th><th>Lid colour</th><th>Remove</th></tr>
-      </thead>
-      <tbody>
-        {% for stream in schedule.streams %}
-        {% set p = s ~ '-streams-' ~ loop.index0 %}
-        <tr>
-          <td><input type="text" name="{{ p }}-label" value="{{ stream.label }}" aria-label="Bin" placeholder="Refuse"></td>
-          <td><input type="date" name="{{ p }}-first_date" value="{{ stream.first_date }}" aria-label="First collection"></td>
-          <td><input type="number" name="{{ p }}-every_weeks" value="{{ stream.every_weeks }}" min="1" max="{{ max_every_weeks }}" step="1" aria-label="Every (weeks)" placeholder="1"></td>
-          {{ style_cells(p, stream) }}
-          <td>{% if not loop.last %}<input type="checkbox" name="{{ p }}-delete" aria-label="Remove {{ stream.label }}">{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p class="field-help">The first collection date sets which week of the cycle this bin falls in.
-      Leave icon and colours on Automatic to work them out from the bin's name.</p>
-    {% if schedule.id %}
-    <div class="field field--check">
-      <label><input type="checkbox" name="{{ s }}-delete"> Delete this schedule</label>
-    </div>
-    {% endif %}
   </section>
-  {% endfor %}
 
-  <section class="card">
-    {{ card_head('Title mappings', icon_name='tag', level=2) }}
-    <p class="field-help">Bin names are matched to an icon and colour automatically (colour words like
-      "brown", then words like "recycling" or "garden"). Add a mapping when a name needs help, for
-      example Liverpool's "Green" bin to the garden icon. A mapping matches a whole name, or whole
-      words within one, ignoring case. Tick Hide for a collection you don't want shown at all, such as
-      a garden waste bin you don't have.</p>
-    <table class="table">
-      <thead>
-        <tr><th>Name contains</th><th>Show as</th><th>Icon</th><th>Bin colour</th><th>Lid colour</th><th>Hide</th><th>Remove</th></tr>
-      </thead>
-      <tbody>
-        {% for mapping in mappings %}
-        {% set m = 'mappings-' ~ loop.index0 %}
-        <tr>
-          <td><input type="text" name="{{ m }}-match" value="{{ mapping.match }}" aria-label="Name contains" placeholder="Green"></td>
-          <td><input type="text" name="{{ m }}-label" value="{{ mapping.label }}" aria-label="Show as" placeholder="(unchanged)"></td>
-          {{ style_cells(m, mapping) }}
-          <td><input type="checkbox" name="{{ m }}-hide" aria-label="Hide {{ mapping.match or 'this bin' }}"{% if mapping.hide %} checked{% endif %}></td>
-          <td>{% if not loop.last %}<input type="checkbox" name="{{ m }}-delete" aria-label="Remove {{ mapping.match }}">{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <section class="card" data-show-for="calendar"{% if config.source != 'calendar' %} hidden{% endif %}>
+    {{ card_head('Your bins calendar', icon_name='house-line', level=2) }}
+    {% if ha_problem == 'unconfigured' %}
+    <p class="field-help bd-note"><i class="ph ph-warning-circle" aria-hidden="true"></i>
+      Connect Home Assistant Core first: add your Home Assistant URL and an access token in
+      <a href="/settings/plugins/ha_core">Settings, Plugins, Home Assistant Core</a>.</p>
+    {% elif ha_problem == 'unreachable' %}
+    <p class="field-help bd-note"><i class="ph ph-warning-circle" aria-hidden="true"></i>
+      Home Assistant can't be reached right now: check Home Assistant Core's URL and token.</p>
+    {% endif %}
+    <div class="field bd-calendar">
+      <label for="bd-calendar">Calendar</label>
+      <select id="bd-calendar" name="calendar" data-calendar-select>
+        <option value="">Choose a calendar…</option>
+        {%- set listed = calendar_options | map('first') | list %}
+        {%- for option_value, option_label in calendar_options %}
+        <option value="{{ option_value }}"{% if option_value == config.calendar %} selected{% endif %}>{{ option_label }}</option>
+        {%- endfor %}
+        {%- if config.calendar and config.calendar not in listed %}
+        <option value="{{ config.calendar }}" selected>{{ config.calendar }}</option>
+        {%- endif %}
+      </select>
+    </div>
+
+    <h3 class="bd-sub">Bins in this calendar</h3>
+    <p class="field-help">Each bin name in the calendar's next 8 weeks gets a row. Leave icon and
+      colours on Automatic to work them out from the name, or set them here. Liverpool's
+      "Green", for example, needs the Garden icon. The eye hides a bin you don't have.
+      Add a row to style names that haven't turned up yet; it matches the whole name, or whole
+      words within one.
+      <a href="https://phosphoricons.com" target="_blank" rel="noreferrer">Browse icon names</a>.</p>
+    {% if discovery_error %}
+    <p class="field-help bd-note" data-titles-status><i class="ph ph-warning-circle" aria-hidden="true"></i> {{ discovery_error }}</p>
+    {% else %}
+    <p class="field-help bd-note" data-titles-status aria-live="polite"></p>
+    {% endif %}
+    <div class="bd-scroll">
+      <div class="bd-head bd-mapping" aria-hidden="true">
+        <span>Bin name</span><span>Show as</span><span>Icon</span><span>Bin colour</span><span>Lid colour</span><span></span>
+      </div>
+      <ul class="bd-list" data-rows="mappings">
+        {% for row in mapping_rows %}{{ mapping_row('mappings-' ~ loop.index0, row) }}{% endfor %}
+      </ul>
+    </div>
+    <button type="button" class="bd-add" data-add-row="mappings"><i class="ph ph-plus" aria-hidden="true"></i><span>Add a name</span></button>
+  </section>
+
+  <section class="card" data-show-for="schedule"{% if config.source != 'schedule' %} hidden{% endif %}>
+    {{ card_head('Your bins', icon_name='calendar-dots', level=2) }}
+    <p class="field-help">A row per bin. The first collection date sets which week of the cycle
+      it falls in. Leave icon and colours on Automatic to work them out from the name.
+      The eye hides a bin without deleting it.
+      <a href="https://phosphoricons.com" target="_blank" rel="noreferrer">Browse icon names</a>.</p>
+    <div class="bd-scroll">
+      <div class="bd-head bd-bin" aria-hidden="true">
+        <span>Bin name</span><span>First collection</span><span>Every (weeks)</span><span>Icon</span><span>Bin colour</span><span>Lid colour</span><span></span>
+      </div>
+      <ul class="bd-list" data-rows="schedule">
+        {% for row in schedule_rows %}{{ bin_row('schedule-' ~ loop.index0, row) }}{% endfor %}
+      </ul>
+    </div>
+    <button type="button" class="bd-add" data-add-row="schedule"><i class="ph ph-plus" aria-hidden="true"></i><span>Add a bin</span></button>
   </section>
 
   <div class="actions">
     {{ button('Save', icon='floppy-disk') }}
   </div>
+
+  <template data-row-template="schedule">{{ bin_row('schedule-__N__', blank_row) }}</template>
+  <template data-row-template="mappings">{{ mapping_row('mappings-__N__', dict(blank_row, match='', discovered=False)) }}</template>
+  <template data-row-template="title">{{ mapping_row('mappings-__N__', dict(blank_row, match='', discovered=True)) }}</template>
 </form>
 {% endblock %}

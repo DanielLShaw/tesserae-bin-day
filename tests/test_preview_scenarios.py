@@ -24,8 +24,8 @@ def test_scenario_renders_what_it_is_named_for(app, client, registry, monkeypatc
 
     data = cell_data(client, scenario.options)
 
-    if scenario.expect == "error":
-        assert "error" in data
+    if isinstance(scenario.expect, str):
+        assert data.get("error", "").startswith(scenario.expect)
     else:
         shown = [(d["days_until"], [s["icon"] for s in d["streams"]]) for d in data["days"]]
         assert shown == scenario.expect

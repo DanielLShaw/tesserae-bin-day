@@ -2,7 +2,14 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
-import render, { dayLabel, xsCount, visibleChips } from "../../bin_day/client.js";
+import render, {
+  dayLabel,
+  longDate,
+  shortDate,
+  shortWeekday,
+  visibleChips,
+  xsCount,
+} from "../../bin_day/client.js";
 
 const stream = (label, icon, body = "#111111", ink = "#ffffff") => ({
   id: "other",
@@ -20,11 +27,18 @@ const TOMORROW = { date: "2026-10-07", days_until: 1, streams: [REFUSE, GREEN] }
 const MONDAY = { date: "2026-10-12", days_until: 6, streams: [RECYCLING] };
 const LATER = { date: "2026-10-13", days_until: 7, streams: [REFUSE] };
 
-function draw(size, data) {
+function draw(size, data, locale = "en") {
   const shadow = { innerHTML: "" };
-  render(shadow, { cell: { size, options: {} }, data });
+  render(shadow, { cell: { size, options: {} }, data, locale });
   return shadow.innerHTML;
 }
+
+// A collection day ``daysUntil`` days after Tue 6 Oct 2026.
+const on = (daysUntil, streams) => ({
+  date: new Date(Date.UTC(2026, 9, 6 + daysUntil)).toISOString().slice(0, 10),
+  days_until: daysUntil,
+  streams,
+});
 
 const count = (html, needle) => html.split(needle).length - 1;
 
@@ -116,12 +130,6 @@ describe("render", () => {
     assert.ok(html.includes("Tomorrow"));
     assert.ok(html.includes("6 days"));
     assert.ok(!html.includes("7 days"));
-  });
-
-  test("MD and LG use the row layout until the bin shapes land", () => {
-    for (const size of ["md", "lg"]) {
-      assert.equal(count(draw(size, { days: [TOMORROW, MONDAY] }), 'class="day-row"'), 2);
-    }
   });
 
   test("chips carry the stream's colours, icon and name", () => {
@@ -216,4 +224,164 @@ describe("render", () => {
     assert.ok(!html.includes("url(x)"));
     assert.ok(!html.includes("x:y"));
   });
+});
+
+describe("dates", () => {
+  test("plain English reads UK style", () => {
+    assert.equal(shortDate("2026-10-07", "en"), "Wed 7 Oct");
+    assert.equal(longDate("2026-10-07", "en"), "Wednesday 7 October");
+    assert.equal(shortWeekday("2026-10-07", "en"), "Wed");
+  });
+
+  test("other locales use their own conventions", () => {
+    assert.equal(shortDate("2026-10-07", "en-US"), "Wed, Oct 7");
+    assert.equal(longDate("2026-10-07", "fr"), "mercredi 7 octobre");
+  });
+
+  test("a date stays the same calendar day in a browser west of UTC", () => {
+    const saved = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    try {
+      assert.equal(shortDate("2026-10-07", "en"), "Wed 7 Oct");
+    } finally {
+      process.env.TZ = saved;
+    }
+  });
+});
+
+describe("MD: one column per collection day", () => {
+  test("each column has the count and short date above its labelled bins", () => {
+    const html = draw("md", { days: [TOMORROW, MONDAY] });
+    assert.equal(count(html, 'class="day-col"'), 2);
+    for (const text of ["Tomorrow", "Wed 7 Oct", "6 days", "Mon 12 Oct"]) {
+      assert.ok(html.includes(text), text);
+    }
+    assert.equal(count(html, 'class="bin"'), 3);
+    assert.equal(count(html, 'class="bin-label"'), 3);
+    assert.ok(html.indexOf("Wed 7 Oct") < html.indexOf('class="bin-label">Refuse<'));
+  });
+
+  test("at most three days are shown", () => {
+    const html = draw("md", { days: [1, 2, 3, 4].map((n) => on(n, bins(1))) });
+    assert.equal(count(html, 'class="day-col"'), 3);
+  });
+
+  test("a later day is only added while the total stays at six bins or fewer", () => {
+    const html = draw("md", { days: [on(1, bins(2)), on(2, bins(3)), on(3, bins(2))] });
+    assert.equal(count(html, 'class="day-col"'), 2);
+    assert.equal(count(html, 'class="bin"'), 5);
+  });
+
+  test("a later day that doesn't fit gets the slots left, ending with +N", () => {
+    const html = draw("md", { days: [on(1, bins(1)), on(6, bins(14))] });
+    assert.equal(count(html, 'class="day-col"'), 2);
+    assert.equal(count(html, 'class="bin"'), 5); // one tomorrow, four on day 6
+    assert.ok(html.includes('<span class="more">+10</span>'));
+    assert.ok(html.includes("--bins:7;--cols:2")); // tomorrow claims 2, day 6 its 5 slots
+  });
+
+  test("two slots left is the least a partial column gets: one bin and +N", () => {
+    const html = draw("md", { days: [on(1, bins(4)), on(3, bins(3))] });
+    assert.equal(count(html, 'class="day-col"'), 2);
+    assert.equal(count(html, 'class="bin"'), 5);
+    assert.ok(html.includes('<span class="more">+2</span>'));
+  });
+
+  test("a busy upcoming day fills MD alone, with +N beyond twelve bins", () => {
+    const seven = draw("md", { days: [on(1, bins(7)), on(3, bins(1))] });
+    assert.equal(count(seven, 'class="day-col"'), 1);
+    assert.equal(count(seven, 'class="bin"'), 7);
+    assert.ok(!seven.includes('class="more"'));
+    const fourteen = draw("md", { days: [on(1, bins(14))] });
+    assert.equal(count(fourteen, 'class="bin"'), 11);
+    assert.ok(fourteen.includes('<span class="more">+3</span>'));
+  });
+
+  test("each column claims at least two bins of width, for its heading", () => {
+    // Tomorrow has two bins, Monday one: 2 + 2 bin widths across two columns.
+    const html = draw("md", { days: [TOMORROW, MONDAY] });
+    assert.ok(html.includes("--bins:4;--cols:2"));
+    const busySecond = draw("md", { days: [on(1, bins(1)), on(6, bins(5))] });
+    assert.ok(busySecond.includes("--bins:7;--cols:2"));
+  });
+});
+
+describe("LG: the upcoming day as hero, later days in a strip", () => {
+  test("the hero has the big label, full date and labelled bins", () => {
+    const html = draw("lg", { days: [TOMORROW, MONDAY] });
+    assert.ok(html.includes('class="hero-label">Tomorrow<'));
+    assert.ok(html.includes("Wednesday 7 October"));
+    assert.equal(count(html, 'class="bin"'), 2);
+    assert.equal(count(html, 'class="bin-label"'), 2);
+  });
+
+  test("each later day is a strip row: chips, names and when", () => {
+    const html = draw("lg", { days: [TOMORROW, { ...MONDAY, streams: [RECYCLING, GREEN] }] });
+    assert.equal(count(html, 'class="strip-row"'), 1);
+    assert.equal(count(html, 'class="chip"'), 2);
+    assert.ok(html.includes('class="strip-names">Recycling, Green<'));
+    assert.ok(html.includes('class="strip-when">6 days · Mon<'));
+  });
+
+  test("strip rows show every bin's chip before any +N, up to twelve", () => {
+    const five = draw("lg", { days: [TOMORROW, on(6, bins(5))] });
+    assert.equal(count(five, 'class="chip"'), 5);
+    assert.ok(!five.includes('class="more"'));
+    const thirteen = draw("lg", { days: [TOMORROW, on(6, bins(13))] });
+    assert.equal(count(thirteen, 'class="chip"'), 11);
+    assert.ok(thirteen.includes('<span class="more">+2</span>'));
+  });
+
+  test("a strip row with more than three bins drops its names, keeping chips and when", () => {
+    const four = draw("lg", { days: [TOMORROW, on(6, bins(4))] });
+    assert.equal(count(four, 'class="strip-names"'), 0);
+    assert.ok(four.includes('class="strip-when">6 days · Mon<'));
+    const three = draw("lg", { days: [TOMORROW, on(6, bins(3))] });
+    assert.ok(three.includes('class="strip-names">Bin 0, Bin 1, Bin 2<'));
+  });
+
+  test("the strip shows at most three later days", () => {
+    const html = draw("lg", { days: [1, 2, 3, 4, 5].map((n) => on(n, bins(1))) });
+    assert.equal(count(html, 'class="strip-row"'), 3);
+  });
+
+  test("with nothing later there is no strip", () => {
+    assert.equal(count(draw("lg", { days: [TOMORROW] }), 'class="strip"'), 0);
+  });
+
+  test("a busy hero shows up to twelve bins, then +N", () => {
+    const html = draw("lg", { days: [on(1, bins(14))] });
+    assert.equal(count(html, 'class="bin"'), 11);
+    assert.ok(html.includes('<span class="more">+3</span>'));
+  });
+});
+
+describe("bin shapes", () => {
+  test("a bin fills its lid and body separately and carries its icon and name", () => {
+    const lidded = { ...RECYCLING, lid_colour: "#000000" };
+    const html = draw("md", { days: [{ ...MONDAY, streams: [lidded] }] });
+    assert.ok(html.includes("--body:#1f4fd1"));
+    assert.ok(html.includes("--lid:#000000"));
+    assert.ok(html.includes("--ink:#ffffff"));
+    assert.ok(html.includes('class="lid"'));
+    assert.ok(html.includes('class="body"'));
+    assert.ok(html.includes('class="ph-bold ph-recycle"'));
+    assert.ok(html.includes('aria-label="Recycling"'));
+  });
+
+  test("a stream with no icon gets a plain bin, never a generic one", () => {
+    const html = draw("md", { days: [{ ...MONDAY, streams: [stream("Brown bin", null, "#7a4a21")] }] });
+    assert.equal(count(html, 'class="bin"'), 1);
+    assert.ok(!html.includes("<i"));
+  });
+
+  for (const size of ["md", "lg"]) {
+    test(`names, icons and colours cannot break out of the ${size} markup`, () => {
+      const evil = stream('"><script>x</script>', 'trash" onerror="x', "red;x:url(y)");
+      const html = draw(size, { days: [{ ...TOMORROW, streams: [evil] }, { ...MONDAY, streams: [evil] }] });
+      assert.ok(!html.includes("<script>"));
+      assert.ok(!html.includes('onerror="'));
+      assert.ok(!html.includes("url(y)"));
+    });
+  }
 });

@@ -120,6 +120,213 @@
   max-width: calc(var(--chip) * 6.75); /* six chips and five gaps a line */
 }
 
+/* ---- wheelie bins (md, lg) ---------------------------------------------- */
+.bin-day .bins {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: calc(var(--bin) * 0.1);
+  /* --bins items a line, then wrap (a busy day's second line) */
+  max-width: calc(var(--bin) * (var(--bins) * 1.25 - 0.1));
+}
+
+.bin-day .bin-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--bin) * 0.06);
+  width: calc(var(--bin) * 1.15);
+  min-width: 0;
+}
+
+.bin-day .bin {
+  position: relative;
+  width: var(--bin);
+  height: calc(var(--bin) * 4 / 3);
+}
+
+.bin-day .bin svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.bin-day .bin .handle,
+.bin-day .bin .lid {
+  fill: var(--lid);
+}
+
+.bin-day .bin .body {
+  fill: var(--body);
+}
+
+.bin-day .bin .handle,
+.bin-day .bin .lid,
+.bin-day .bin .body {
+  stroke: var(--bin-outline);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.bin-day .bin .wheel {
+  fill: var(--bin-outline);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.bin-day .bin i {
+  position: absolute;
+  left: 50%;
+  top: 56%; /* the middle of the body, below the lid */
+  transform: translate(-50%, -50%);
+  font-size: calc(var(--bin) * 0.42);
+  line-height: 1;
+  color: var(--ink);
+}
+
+.bin-day .bin-label {
+  max-width: 100%;
+  font-size: clamp(11px, calc(var(--bin) * 0.2), 30px);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bin-day .bins .more {
+  width: var(--bin);
+  height: calc(var(--bin) * 4 / 3);
+  border-radius: calc(var(--bin) * 0.12);
+  font-size: calc(var(--bin) * 0.3);
+}
+
+/* ---- md: a column per collection day ------------------------------------ */
+.bin-day .day-cols {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 3cqw;
+  min-height: 0;
+  /* the bins across every column share the width (columns add a gap and a
+     rule); their heights, with names, share what the headings leave */
+  --bin: min(
+    calc((88cqw - (var(--cols) - 1) * 6cqw) / (var(--bins) * 1.25)),
+    calc(58cqh / var(--lines) / 1.7),
+    160px
+  );
+}
+
+.bin-day .day-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bin-day .day-col + .day-col {
+  padding-left: 3cqw;
+  border-left: var(--stroke-1) solid var(--text-muted);
+}
+
+.bin-day .day-head {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.bin-day.size-md .day-label {
+  font-size: clamp(14px, min(9cqmin, 4.5cqw), 44px);
+}
+
+.bin-day .day-date {
+  font-size: clamp(11px, min(5.5cqmin, 3.5cqw), 28px);
+  color: var(--text-secondary);
+}
+
+/* ---- lg: the upcoming day as hero, later days in a strip --------------- */
+.bin-day .hero {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+/* The hero's bins get whatever the headline and the strip leave, whatever
+   the cell's shape: this area is a size container, and the bins inside size
+   from it (a line of bins with names is about 1.75 bin widths tall). */
+.bin-day .hero-bins {
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
+}
+
+.bin-day .hero-bins .bins {
+  --bin: min(
+    calc(100cqw / (var(--bins) * 1.25)),
+    calc(100cqh / (var(--lines) * 1.75)),
+    220px
+  );
+}
+
+.bin-day .hero-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.bin-day .hero-label {
+  font-size: clamp(28px, min(14cqh, 10cqw), 120px);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+
+.bin-day .hero-date {
+  font-size: clamp(14px, min(5cqh, 3.5cqw), 40px);
+  color: var(--text-secondary);
+}
+
+.bin-day .strip {
+  /* sized so twelve chips and the "when" still fit a narrow lg cell */
+  --chip: clamp(18px, min(8cqh, 4.5cqw), 56px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--stroke-1) solid var(--text-muted);
+}
+
+.bin-day .strip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Chips and "when" keep their size; the names take what is left. */
+.bin-day .strip-row .chips {
+  flex: 0 0 auto;
+}
+
+.bin-day .strip-names,
+.bin-day .strip-when {
+  font-size: clamp(13px, min(4.5cqh, 3cqw), 34px);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+}
+
+.bin-day .strip-names {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bin-day .strip-when {
+  flex: 0 0 auto;
+  margin-left: auto; /* right-aligned, names or not */
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- empty state and error tile ---------------------------------------- */
 .bin-day .notice {
   flex: 1 1 auto;

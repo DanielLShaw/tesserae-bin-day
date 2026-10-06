@@ -152,6 +152,36 @@ SCENARIOS = [
         ],
     ),
     Scenario(
+        "overflow-second-day",
+        "A light day, then fourteen bins: SM's second row, MD's second column and "
+        "LG's strip end with +N.",
+        [_stream("Refuse", "2026-10-07", 2)]
+        + [
+            _stream(label, "2026-10-12", 2)
+            for label in (
+                "Recycling",
+                "Garden waste",
+                "Food waste",
+                "Glass",
+                "Paper",
+                "Cardboard",
+                "Batteries",
+                "Textiles",
+                "Small electricals",
+                "Nappies",
+                "Bulky items",
+                "Clinical waste",
+                "Plastics",
+                "Coffee pods",
+            )
+        ],
+        _at(6, 8),
+        [
+            (1, ["trash"]),
+            (6, ["recycle", "leaf", "fork-knife", "wine", "newspaper", "newspaper"] + [None] * 8),
+        ],
+    ),
+    Scenario(
         "empty",
         "Nothing in the next 7 days.",
         [_stream("Refuse", "2026-12-01", 1)],

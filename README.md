@@ -148,7 +148,7 @@ screenshots/                 gitignored, always the latest run
   index.html                 contact sheet: one row per scenario
   next-week/xs.png ... lg.png
   today/  after-cutoff/  colour-names/  busy-day/  busy-second-day/
-  overflow/  empty/  error/
+  overflow/  overflow-second-day/  empty/  error/
 ```
 
 Open `screenshots/index.html` to compare everything at once. Options, all

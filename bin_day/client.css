@@ -1,6 +1,7 @@
 /* Bin Day widget. Sizes scale with the cell (cqmin), not media queries;
    no motion. Text and surfaces use Spectra tokens. Bin fills come from
-   the data (--body, --ink); the outline, in the theme's text colour, keeps
+   the data (a bin's --body and --lid, a chip's --fill, and the icon's
+   --ink); the outline, in the theme's text colour, keeps
    every bin visible against the surface. */
 
 .bin-day {
@@ -44,7 +45,7 @@
 }
 
 .bin-day .chip {
-  background: var(--body);
+  background: var(--fill);
   color: var(--ink);
   outline: max(2px, calc(var(--chip) * 0.05)) solid var(--bin-outline);
   outline-offset: calc(max(2px, calc(var(--chip) * 0.05)) * -1);

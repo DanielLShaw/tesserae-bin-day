@@ -14,6 +14,9 @@ The repo ships two plugin folders, installed together:
 | `bin_day_core/` | data | Admin page: where the bins come from (a Home Assistant calendar or a manual schedule) and how each one looks. Builds each cell's data; no cell of its own. |
 | `bin_day/` | widget | The placeable cell: XS, SM, MD and LG layouts plus an empty state. |
 
+How bins get their body and lid colours, with examples of the ways
+councils colour their bins: [docs/bin-colours.md](docs/bin-colours.md).
+
 Status: in development, not yet in the catalog. Install and setup
 instructions for users come with the first release.
 
@@ -90,10 +93,10 @@ node --check bin_day/client.js bin_day_core/static/admin.js
 
 | Tests | Covers |
 | --- | --- |
-| `test_resolve.py` | Event title to icon and colours: user mappings, colour words, material keywords, fallback; Liverpool and Stockport titles; hiding a title |
+| `test_resolve.py` | Event title to icon and colours: user mappings, colour words, lid colours ("blue lid"), material keywords, fallback; Liverpool and Stockport titles; hiding a title |
 | `test_schedule.py` | Fixed-rule dates: 1 to 8 weekly cycles and their phase, future start, year boundary, clock changes |
 | `test_collections.py` | The 0 to 7 day window, the cutoff time, same-day merge, de-duplication, the `next_change_at` refresh hint |
-| `test_palette.py` | Colour names to hex, a black or white icon that contrasts with each fill, and each bin's black-and-white fill |
+| `test_palette.py` | Colour names to hex, a black or white icon that contrasts with each bin and chip fill, and each bin's black-and-white fill |
 | `test_config.py` | Parsing and validating the admin form: source, calendar, bins, custom icons and colours, hidden rows |
 | `test_payload.py` | The data a cell receives from `fetch()` |
 | `test_calendar.py` | Home Assistant events to dates (all-day and timed, across clock changes), the query range, cache freshness |
@@ -102,7 +105,8 @@ node --check bin_day/client.js bin_day_core/static/admin.js
 | `test_widget.py` | `fetch()` end to end, including every error tile |
 | `test_admin.py`, `test_core_server.py` | The admin page (source, bins, a calendar's bin names, saving and its errors), config storage, timezone and plugin reload |
 | `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, listing a newly chosen calendar's bins |
-| `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for |
+| `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for; the docs have each docs scenario's images |
+| `test_release.py` | Every root folder other than the two plugins is left out of the release tarball |
 | `tests/js/client.test.js` | Day labels, chip overflow, XS/SM/empty/error layouts, HTML and CSS escaping |
 
 ### How the integration tests work
@@ -182,6 +186,11 @@ takes. Each scenario has its own bins and pinned clock; to add
 one, add a `Scenario` to `preview/scenarios.py` with the days and icons it
 should show, which `test_preview_scenarios.py` checks.
 
+`uv run preview/shoot.py --docs` renders the scenarios marked `docs=True`
+at LG and SM into `docs/images/`, the images in
+[docs/bin-colours.md](docs/bin-colours.md). Unlike `screenshots/`, these are
+committed; render them again when a change alters how those bins look.
+
 The tool drives Chromium through Playwright. If Playwright's matching
 Chromium build is missing it falls back to the newest one installed and
 says so; install the matching build with
@@ -198,9 +207,10 @@ bin_day_core/         admin + data plugin
   static/             admin page script and styles
 tests/                pytest suites; tests/js/ for client.js
 preview/              screenshot scenarios and tool, local dev server
+docs/                 how bins get their colours, with example images
 ```
 
-`tests/`, `preview/` and `.github/` are export-ignored, so the release tarball
+`tests/`, `preview/`, `docs/` and `.github/` are export-ignored, so the release tarball
 holds only the plugin folders and root files.
 
 ## Licence

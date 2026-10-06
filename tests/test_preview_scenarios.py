@@ -7,6 +7,10 @@ import pytest
 
 from preview.scenarios import SCENARIOS
 
+from .conftest import REPO
+
+DOCS = REPO / "docs"
+
 
 def cell_data(client, opts):
     resp = client.get(f"/_test/render?plugin=bin_day&size=sm&opts={quote(json.dumps(opts))}")
@@ -29,6 +33,14 @@ def test_scenario_renders_what_it_is_named_for(app, client, registry, monkeypatc
     else:
         shown = [(d["days_until"], [s["icon"] for s in d["streams"]]) for d in data["days"]]
         assert shown == scenario.expect
+
+
+@pytest.mark.parametrize("scenario", [s for s in SCENARIOS if s.docs], ids=lambda s: s.name)
+@pytest.mark.parametrize("size", ["lg", "sm"])
+def test_each_docs_scenario_has_its_images_in_the_docs(scenario, size):
+    image = f"images/{scenario.name}-{size}.png"
+    assert (DOCS / image).is_file(), "run: uv run preview/shoot.py --docs"
+    assert f"({image})" in (DOCS / "bin-colours.md").read_text()
 
 
 def test_scenario_names_are_unique_folder_names():

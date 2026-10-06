@@ -19,6 +19,7 @@ const stream = (label, icon, body = "#111111", ink = "#ffffff") => ({
   body_colour: body,
   lid_colour: body,
   icon_colour: ink,
+  chip_icon_colour: ink,
 });
 
 const REFUSE = stream("Refuse", "trash");
@@ -135,10 +136,20 @@ describe("render", () => {
 
   test("chips carry the stream's colours, icon and name", () => {
     const html = draw("sm", { days: [{ ...MONDAY, streams: [RECYCLING] }] });
-    assert.ok(html.includes("--body:#1f4fd1"));
+    assert.ok(html.includes("--fill:#1f4fd1"));
     assert.ok(html.includes("--ink:#ffffff"));
     assert.ok(html.includes('class="ph-bold ph-recycle"'));
     assert.ok(html.includes('aria-label="Recycling"'));
+  });
+
+  test("a chip shows the lid colour, the one lid-coded bins are named by", () => {
+    const blueLid = {
+      ...stream("Recycling", "recycle", "#4d4d4d"),
+      lid_colour: "#f5c400",
+      chip_icon_colour: "#000000",
+    };
+    const html = draw("sm", { days: [{ ...MONDAY, streams: [blueLid] }] });
+    assert.ok(html.includes('style="--fill:#f5c400;--ink:#000000"'));
   });
 
   test("a stream with no icon gets a plain chip, never a generic bin", () => {

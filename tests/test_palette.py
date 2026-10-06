@@ -117,8 +117,19 @@ def test_display_stream_converts_colours_and_adds_icon_colour():
         "body_colour": "#000000",
         "lid_colour": "#ffffff",
         "icon_colour": "#ffffff",
+        "chip_icon_colour": "#000000",
         "mono_fill": "solid",
     }
+
+
+def test_the_chip_icon_is_picked_against_the_lid():
+    # A chip shows the lid colour, the colour lid-coded bins are named by.
+    stream = {"id": "other", "label": "Bin", "icon": None}
+    yellow_lid = {**stream, "body_colour": "dark_grey", "lid_colour": "yellow"}
+    shown = display_stream(yellow_lid)
+    assert (shown["icon_colour"], shown["chip_icon_colour"]) == ("#ffffff", "#000000")
+    printed_red = {**stream, "body_colour": "white", "lid_colour": "red"}
+    assert display_stream(printed_red, eink=True)["chip_icon_colour"] == "#ffffff"
 
 
 def test_display_stream_resolves_palette_names():
@@ -155,6 +166,7 @@ class TestMonoFill:
         ("body", "fill"),
         [
             ("black", "solid"),
+            ("dark_grey", "solid"),
             ("grey", "solid"),
             ("green", "hatched"),
             ("blue", "white"),
@@ -165,6 +177,7 @@ class TestMonoFill:
             ("brown", "dotted"),
             ("orange", "dotted"),
             ("purple", "crosshatch"),
+            ("pink", "crosshatch"),
             ("red", "crosshatch"),
             ("maroon", "crosshatch"),
             ("burgundy", "crosshatch"),
@@ -182,6 +195,11 @@ class TestMonoFill:
                 "dotted",
                 "crosshatch",
             }
+
+    def test_a_lid_coloured_bin_goes_by_its_lid(self):
+        # One body colour for every bin: the lid is what tells them apart.
+        stream = {**stream_of("other", "dark_grey"), "lid_colour": "blue"}
+        assert mono_fill(stream) == "white"
 
     def test_food_glass_and_paper_go_by_colour_too(self):
         assert mono_fill(stream_of("food", "light_grey")) == "white"

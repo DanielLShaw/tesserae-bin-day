@@ -38,6 +38,7 @@ def test_build_payload_gives_display_streams_and_next_change():
                         "body_colour": "#000000",
                         "lid_colour": "#000000",
                         "icon_colour": "#ffffff",
+                        "chip_icon_colour": "#ffffff",
                         "mono_fill": "solid",
                     }
                 ],

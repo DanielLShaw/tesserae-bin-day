@@ -3,6 +3,10 @@
 UK councils use no standard bin colours, so a title is read for colour words
 and material keywords, after any user mapping. Colours are palette names
 ("light_blue") or user hex values; converting names to hex happens later.
+
+Many councils give every bin the same body (usually black or dark grey) and
+tell them apart by lid, naming them by it: "blue-lidded bin", "pink lid". A
+colour word followed by "lid" colours only the lid.
 """
 
 import re
@@ -45,6 +49,8 @@ MATERIAL_KEYWORDS = (
 
 # Colour word -> palette name.
 COLOUR_WORDS = (
+    ("dark grey", "dark_grey"),
+    ("dark gray", "dark_grey"),
     ("light blue", "light_blue"),
     ("light grey", "light_grey"),
     ("light gray", "light_grey"),
@@ -55,6 +61,7 @@ COLOUR_WORDS = (
     ("green", "green"),
     ("brown", "brown"),
     ("purple", "purple"),
+    ("pink", "pink"),
     ("maroon", "maroon"),
     ("burgundy", "burgundy"),
     ("red", "red"),
@@ -64,6 +71,13 @@ COLOUR_WORDS = (
 )
 
 FALLBACK_COLOUR = "grey"
+LID_CODED_BODY = "dark_grey"  # the body of a bin named by its lid colour
+
+# "blue lid", "red-lidded", "grey lids": colour word -> lid colour.
+_LID_PHRASES = [
+    (re.compile(rf"\b{re.escape(word)}[\s-]*lid(?:s|ded)?\b", re.IGNORECASE), name)
+    for word, name in COLOUR_WORDS
+]
 
 # Stream ids in display order: the materials, then anything unrecognised.
 STREAM_ORDER = (*MATERIAL_STYLES, "other")
@@ -122,11 +136,23 @@ def _find_mapping(title, mappings):
     return {}
 
 
+def _blank(text, start, end):
+    return text[:start] + " " * (end - start) + text[end:]
+
+
 def _mask_materials(title):
     """Blank out material phrases so "green waste" is not read as a colour."""
     for start, end, _ in _matches(title, MATERIAL_KEYWORDS):
-        title = title[:start] + " " * (end - start) + title[end:]
+        title = _blank(title, start, end)
     return title
+
+
+def _lid_match(text):
+    """The earliest "<colour> lid" phrase in ``text`` as (start, end, colour)."""
+    hits = [
+        (m.start(), m.end(), name) for regex, name in _LID_PHRASES for m in regex.finditer(text)
+    ]
+    return min(hits, key=lambda hit: hit[0], default=None)
 
 
 def resolve_stream(title, mappings=(), overrides=None):
@@ -135,8 +161,10 @@ def resolve_stream(title, mappings=(), overrides=None):
 
     1. ``overrides`` (a fixed-rule stream's own fields), then the user's
        mapping for this title
-    2. a colour word in the title (colour only; material phrases masked)
-    3. a material keyword in the title (its icon and default colour)
+    2. a colour word in the title (colour only; material phrases masked):
+       "<colour> lid" for the lid, any other colour word for the body
+    3. a material keyword in the title (its icon and default colour); a bin
+       named by its lid colour gets a dark grey body instead
     4. no icon, grey
     """
     title = title.strip()
@@ -154,15 +182,21 @@ def resolve_stream(title, mappings=(), overrides=None):
         icon = mapped_icon
         material = ICON_MATERIALS.get(mapped_icon, material)
 
-    colour_hit = _first_match(_mask_materials(title), COLOUR_WORDS)
-    default_colour = MATERIAL_STYLES.get(material, (None, FALLBACK_COLOUR))[1]
+    colour_text = _mask_materials(title)
+    lid_hit = _lid_match(colour_text)
+    if lid_hit:
+        colour_text = _blank(colour_text, lid_hit[0], lid_hit[1])
+        default_colour = LID_CODED_BODY
+    else:
+        default_colour = MATERIAL_STYLES.get(material, (None, FALLBACK_COLOUR))[1]
+    colour_hit = _first_match(colour_text, COLOUR_WORDS)
     body = _colour(mapping.get("body_colour")) or (colour_hit[2] if colour_hit else default_colour)
     return {
         "id": material,
         "label": clean_text(mapping.get("label")) or title,
         "icon": icon,
         "body_colour": body,
-        "lid_colour": _colour(mapping.get("lid_colour")) or body,
+        "lid_colour": _colour(mapping.get("lid_colour")) or (lid_hit[2] if lid_hit else body),
     }
 
 

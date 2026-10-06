@@ -5,6 +5,7 @@
     uv run preview/shoot.py -t light -t dark -t paper   several themes
     uv run preview/shoot.py --e6                    also simulate the E1002's inks
     uv run preview/shoot.py -d 400x240 -d 150x200   cells of any size (WxH)
+    uv run preview/shoot.py --docs                  the images in docs/images/
 
 Writes screenshots/<scenario>/<size>.png (``<size>-<theme>.png`` for themes
 other than light) and screenshots/index.html, a contact sheet of the lot.
@@ -16,6 +17,9 @@ Steinberg, as its packer does), shown in the inks' measured colours.
 A full run (no -s/-z/-t/-d/--e6) replaces the whole folder, so it holds only the
 latest shots; narrower runs update just the shots they take. Shots are
 rendered into a staging folder first, so a failed run changes nothing.
+--docs instead renders each docs scenario at LG and SM into
+docs/images/<scenario>-<size>.png for docs/bin-colours.md; those images are
+committed.
 
 Boots a real Tesserae app from the pinned checkout in .tesserae/ with this
 repo's plugins installed, saves each scenario's config from preview/scenarios.py, pins
@@ -41,6 +45,8 @@ from werkzeug.serving import make_server
 
 REPO = Path(__file__).resolve().parent.parent
 TESSERAE_SRC = Path(os.environ.get("TESSERAE_SRC", REPO / ".tesserae")).expanduser()
+DOCS_IMAGES = REPO / "docs" / "images"
+DOCS_SIZES = ("lg", "sm")
 SIZES = ("xs", "sm", "md", "lg")
 DIMS = re.compile(r"^(\d{2,4})x(\d{2,4})$")
 INSTALL_HINT = "uv run playwright install chromium --only-shell"
@@ -55,6 +61,7 @@ def parse_args():
     parser.add_argument("-o", "--out", type=Path, default=REPO / "screenshots")
     parser.add_argument("--e6", action="store_true", help="add Spectra 6 panel simulations")
     parser.add_argument("-d", "--dims", action="append", type=_dims, help="WxH; repeatable")
+    parser.add_argument("--docs", action="store_true", help="render docs/images/ only")
     return parser.parse_args()
 
 
@@ -219,8 +226,28 @@ def shoot(stage, scenarios, views, themes, e6=False):
     return count
 
 
+def shoot_docs():
+    """docs/images/<scenario>-<size>.png: each docs scenario at LG and SM."""
+    scenarios = [s for s in SCENARIOS if s.docs]
+    stage = Path(tempfile.mkdtemp(prefix="bin-day-stage-"))
+    try:
+        count = shoot(stage, scenarios, DOCS_SIZES, ["light"])
+        DOCS_IMAGES.mkdir(parents=True, exist_ok=True)
+        for scenario in scenarios:
+            for size in DOCS_SIZES:
+                shutil.copyfile(
+                    stage / scenario.name / f"{size}.png",
+                    DOCS_IMAGES / f"{scenario.name}-{size}.png",
+                )
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+    print(f"{count} images in {DOCS_IMAGES}")
+
+
 def main():
     args = parse_args()
+    if args.docs:
+        return shoot_docs()
     scenarios = [s for s in SCENARIOS if not args.scenario or s.name in args.scenario]
     views = [*(args.size or ([] if args.dims else SIZES)), *(args.dims or [])]
     themes = args.theme or ["light"]

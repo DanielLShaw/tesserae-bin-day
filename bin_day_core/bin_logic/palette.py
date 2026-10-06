@@ -17,6 +17,7 @@ from .resolve import FALLBACK_COLOUR
 
 SCREEN_PALETTE = {
     "black": "#111111",
+    "dark_grey": "#4d4d4d",
     "grey": "#8c8c8c",
     "light_grey": "#cfcfcf",
     "blue": "#1f4fd1",
@@ -24,6 +25,7 @@ SCREEN_PALETTE = {
     "green": "#13803a",
     "brown": "#7a4a21",
     "purple": "#6b2c91",
+    "pink": "#e5609e",
     "maroon": "#800000",
     "burgundy": "#7a1f3d",
     "red": "#d42020",
@@ -63,6 +65,7 @@ PRINTED_INKS = {
 MATERIAL_FILLS = {"refuse": "solid", "garden": "hatched", "recycling": "white"}
 COLOUR_FILLS = {
     "black": "solid",
+    "dark_grey": "solid",
     "grey": "solid",
     "green": "hatched",
     "blue": "white",
@@ -73,6 +76,7 @@ COLOUR_FILLS = {
     "brown": "dotted",
     "orange": "dotted",
     "purple": "crosshatch",
+    "pink": "crosshatch",
     "red": "crosshatch",
     "maroon": "crosshatch",
     "burgundy": "crosshatch",
@@ -107,13 +111,15 @@ def icon_ink(fill, eink=False):
 
 
 def mono_fill(stream):
-    """The bin's black-and-white fill: its material's, else its colour's;
-    a custom hex colour goes by brightness."""
+    """The bin's black-and-white fill: its material's, else its lid colour's
+    (the lid is the body colour unless the bin is told apart by its lid); a
+    custom hex colour goes by brightness."""
     if stream["id"] in MATERIAL_FILLS:
         return MATERIAL_FILLS[stream["id"]]
-    if stream["body_colour"] in COLOUR_FILLS:
-        return COLOUR_FILLS[stream["body_colour"]]
-    lum = _luminance(colour_hex(stream["body_colour"]))
+    colour = stream["lid_colour"]
+    if colour in COLOUR_FILLS:
+        return COLOUR_FILLS[colour]
+    lum = _luminance(colour_hex(colour))
     if lum < 0.15:
         return "solid"
     return "white" if lum > 0.5 else "dotted"
@@ -121,12 +127,15 @@ def mono_fill(stream):
 
 def display_stream(stream, eink=False):
     """``stream`` with hex body and lid colours from the screen or e-ink set,
-    an ``icon_colour`` and its black-and-white ``mono_fill``."""
+    the icon colour on its body and on its chip (which shows the lid colour,
+    the one lid-coded bins are named by), and its black-and-white ``mono_fill``."""
     body = colour_hex(stream["body_colour"], eink)
+    lid = colour_hex(stream["lid_colour"], eink)
     return {
         **stream,
         "body_colour": body,
-        "lid_colour": colour_hex(stream["lid_colour"], eink),
+        "lid_colour": lid,
         "icon_colour": icon_ink(body, eink),
+        "chip_icon_colour": icon_ink(lid, eink),
         "mono_fill": mono_fill(stream),
     }

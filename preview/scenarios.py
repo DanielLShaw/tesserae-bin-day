@@ -4,6 +4,9 @@ schedule of bins), a pinned clock, and the cell options to render.
 ``expect`` is what the cell should show, checked by
 tests/test_preview_scenarios.py: ``[(days_until, [icon, ...]), ...]`` for
 each collection day, or the start of the error tile's message.
+
+``docs`` scenarios also illustrate docs/bin-colours.md: ``preview/shoot.py
+--docs`` renders them at LG and SM into docs/images/.
 """
 
 from dataclasses import dataclass
@@ -13,14 +16,14 @@ from zoneinfo import ZoneInfo
 LONDON = ZoneInfo("Europe/London")
 
 
-def _stream(label, first_date, every_weeks, icon=""):
+def _stream(label, first_date, every_weeks, icon="", body_colour="", lid_colour=""):
     return {
         "label": label,
         "first_date": first_date,
         "every_weeks": every_weeks,
         "icon": icon,
-        "body_colour": "",
-        "lid_colour": "",
+        "body_colour": body_colour,
+        "lid_colour": lid_colour,
         "hide": False,
     }
 
@@ -37,6 +40,14 @@ LIVERPOOL = [
 ]
 
 
+# Milton Keynes' bins: black bodies with black, blue and red lids.
+LID_CODED = [
+    _stream("Black lid rubbish", "2026-10-07", 2),
+    _stream("Blue lid recycling", "2026-10-07", 2),
+    _stream("Red lid paper", "2026-10-12", 2),
+]
+
+
 @dataclass(frozen=True)
 class Scenario:
     name: str
@@ -48,6 +59,7 @@ class Scenario:
     colours: str = "auto"
     source: str = "schedule"
     theme: str | None = None  # render in this theme whatever the run's
+    docs: bool = False
 
     @property
     def config(self):
@@ -204,10 +216,19 @@ SCENARIOS = [
         "Seven bin colours side by side (no icons), for checking the palette.",
         [
             _stream(f"{colour} bin", "2026-10-07", 1)
-            for colour in ("Black", "Grey", "Blue", "Green", "Brown", "Purple", "Maroon")
+            for colour in (
+                "Black",
+                "Dark grey",
+                "Grey",
+                "Blue",
+                "Green",
+                "Brown",
+                "Purple",
+                "Maroon",
+            )
         ],
         _at(6, 8),
-        [(1, [None] * 7)],
+        [(1, [None] * 8)],
     ),
     Scenario(
         "palette-light",
@@ -216,6 +237,7 @@ SCENARIOS = [
             _stream(f"{colour} bin", "2026-10-07", 1)
             for colour in (
                 "Burgundy",
+                "Pink",
                 "Red",
                 "Orange",
                 "Yellow",
@@ -225,7 +247,64 @@ SCENARIOS = [
             )
         ],
         _at(6, 8),
-        [(1, [None] * 7)],
+        [(1, [None] * 8)],
+    ),
+    Scenario(
+        "solid-bins",
+        "Liverpool: each bin one colour, lid included. The chips match the bins.",
+        [
+            _stream("Refuse", "2026-10-07", 2, body_colour="purple"),
+            _stream("Green", "2026-10-07", 2, icon="leaf"),
+            _stream("Recycling", "2026-10-12", 2),
+        ],
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        docs=True,
+    ),
+    Scenario(
+        "lid-colours",
+        "Milton Keynes-style: every bin dark grey, told apart by lid. Lid colours "
+        "read from the names; the chips take the lid colour.",
+        LID_CODED,
+        _at(6, 8),
+        [(1, ["trash", "recycle"]), (6, ["newspaper"])],
+        docs=True,
+    ),
+    Scenario(
+        "lid-colours-mono",
+        "The lid-coloured bins in Black & white: each takes its lid colour's fill.",
+        LID_CODED,
+        _at(6, 8),
+        [(1, ["trash", "recycle"]), (6, ["newspaper"])],
+        colours="mono",
+        docs=True,
+    ),
+    Scenario(
+        "mixed-bins",
+        "Salford-style: one-colour bins plus a pink-lidded one, all read from the names.",
+        [
+            _stream("Black rubbish bin", "2026-10-07", 2),
+            _stream("Pink lid garden bin", "2026-10-07", 2),
+            _stream("Brown glass bin", "2026-10-12", 2),
+            _stream("Blue paper bin", "2026-10-12", 2),
+        ],
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["wine", "newspaper"])],
+        docs=True,
+    ),
+    Scenario(
+        "set-by-hand",
+        "Perth & Kinross: every bin green, named by its lid, so lid colours (and "
+        "icons) are set in Bin Day Core.",
+        [
+            _stream("Green bin", "2026-10-07", 2, "trash"),
+            _stream("Grey bin", "2026-10-07", 2, "recycle", "green", "grey"),
+            _stream("Blue bin", "2026-10-12", 4, "newspaper", "green", "blue"),
+            _stream("Brown bin", "2026-10-12", 2, "leaf", "green", "brown"),
+        ],
+        _at(6, 8),
+        [(1, ["trash", "recycle"]), (6, ["leaf", "newspaper"])],
+        docs=True,
     ),
     Scenario(
         "empty",

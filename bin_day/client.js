@@ -132,8 +132,11 @@ export function visibleChips(streams, slots) {
 const iconHtml = (stream) =>
   ICON_NAME.test(stream.icon ?? "") ? `<i class="ph-bold ph-${stream.icon}" aria-hidden="true"></i>` : "";
 
+// A chip takes the lid colour: the body's unless the bin is one of a set
+// told apart by lid (all black, with blue, red and pink lids), which people
+// name by their lids.
 function chip(stream) {
-  const colours = `--body:${safeColour(stream.body_colour)};--ink:${safeColour(stream.icon_colour)}`;
+  const colours = `--fill:${safeColour(stream.lid_colour)};--ink:${safeColour(stream.chip_icon_colour)}`;
   return `<span class="chip" ${monoAttr(stream)} role="img" aria-label="${escapeHtml(stream.label)}" style="${colours}">${iconHtml(stream)}</span>`;
 }
 

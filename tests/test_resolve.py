@@ -61,6 +61,8 @@ def test_material_keyword_sets_stream_icon_and_default_colour(title, expected):
     ("title", "colour"),
     [
         ("Black bin", "black"),
+        ("Dark grey bin", "dark_grey"),
+        ("Dark gray bin", "dark_grey"),
         ("Grey bin", "grey"),
         ("Gray bin", "grey"),
         ("Light grey bin", "light_grey"),
@@ -70,6 +72,7 @@ def test_material_keyword_sets_stream_icon_and_default_colour(title, expected):
         ("Green bin", "green"),
         ("Brown bin", "brown"),
         ("Purple bin", "purple"),
+        ("Pink bin", "pink"),
         ("Maroon bin", "maroon"),
         ("Burgundy bin", "burgundy"),
         ("Red bin", "red"),
@@ -224,6 +227,42 @@ class TestUserMappings:
     def test_mapping_with_blank_match_text_is_ignored(self):
         mappings = [{"match": " ", "label": "Everything"}]
         assert resolve_stream("Refuse", mappings)["label"] == "Refuse"
+
+
+class TestLidColours:
+    """Councils with one body colour tell bins apart by lid, and name them by
+    it: "blue-lidded bin". A lid colour colours only the lid."""
+
+    @pytest.mark.parametrize(
+        ("title", "body", "lid"),
+        [
+            ("Blue lid bin", "dark_grey", "blue"),
+            ("Red-lidded bin", "dark_grey", "red"),
+            ("Pink Lid", "dark_grey", "pink"),
+            ("Grey lids", "dark_grey", "grey"),
+            ("Light blue lidded bin", "dark_grey", "light_blue"),
+            ("Black bin with blue lid", "black", "blue"),
+            ("Blue lid, black bin", "black", "blue"),
+            ("Recycling bin (brown, grey lid)", "brown", "grey"),
+        ],
+    )
+    def test_a_lid_colour_colours_only_the_lid(self, title, body, lid):
+        resolved = resolve_stream(title)
+        assert (resolved["body_colour"], resolved["lid_colour"]) == (body, lid)
+
+    def test_a_lid_colour_keeps_the_materials_icon(self):
+        title = "Garden waste - brown lid"
+        assert resolve_stream(title) == stream(title, "garden", "leaf", "dark_grey", "brown")
+
+    def test_lid_must_be_a_whole_word(self):
+        resolved = resolve_stream("Blue lidless box")
+        assert (resolved["body_colour"], resolved["lid_colour"]) == ("blue", "blue")
+
+    def test_a_mapping_colour_still_wins(self):
+        body = resolve_stream("Blue lid bin", [{"match": "Blue lid bin", "body_colour": "purple"}])
+        lid = resolve_stream("Blue lid bin", [{"match": "Blue lid bin", "lid_colour": "red"}])
+        assert (body["body_colour"], body["lid_colour"]) == ("purple", "blue")
+        assert (lid["body_colour"], lid["lid_colour"]) == ("dark_grey", "red")
 
 
 def test_title_whitespace_is_trimmed():

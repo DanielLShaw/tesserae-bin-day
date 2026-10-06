@@ -9,3 +9,5 @@ htmlcov/
 coverage.xml
 .vscode/
 .DS_Store
+.tesserae/
+screenshots/

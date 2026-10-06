@@ -1,0 +1,162 @@
+{
+  "tesserae_compat": "1.x",
+  "name": "Bin Day",
+  "version": "0.1.0",
+  "kind": "widget",
+  "description": "Which bins are collected in the next 7 days and how many days until each collection. Reads a fixed rule schedule or a Home Assistant calendar. Requires the Bin Day Core plugin.",
+  "icon": "ph-trash",
+  "supports": {
+    "sizes": [
+      "xs",
+      "sm",
+      "md",
+      "lg"
+    ]
+  },
+  "cell_options": [
+    {
+      "name": "source",
+      "type": "select",
+      "label": "Source",
+      "default": "",
+      "choices_from": "sources",
+      "help": "A bin schedule from the Bin Day Core admin page (Plugins, Bin Day Core)."
+    },
+    {
+      "name": "cutoff",
+      "type": "select",
+      "label": "Collection done by",
+      "default": "10:00",
+      "choices": [
+        {
+          "value": "06:00",
+          "label": "06:00"
+        },
+        {
+          "value": "06:30",
+          "label": "06:30"
+        },
+        {
+          "value": "07:00",
+          "label": "07:00"
+        },
+        {
+          "value": "07:30",
+          "label": "07:30"
+        },
+        {
+          "value": "08:00",
+          "label": "08:00"
+        },
+        {
+          "value": "08:30",
+          "label": "08:30"
+        },
+        {
+          "value": "09:00",
+          "label": "09:00"
+        },
+        {
+          "value": "09:30",
+          "label": "09:30"
+        },
+        {
+          "value": "10:00",
+          "label": "10:00"
+        },
+        {
+          "value": "10:30",
+          "label": "10:30"
+        },
+        {
+          "value": "11:00",
+          "label": "11:00"
+        },
+        {
+          "value": "11:30",
+          "label": "11:30"
+        },
+        {
+          "value": "12:00",
+          "label": "12:00"
+        },
+        {
+          "value": "12:30",
+          "label": "12:30"
+        },
+        {
+          "value": "13:00",
+          "label": "13:00"
+        },
+        {
+          "value": "13:30",
+          "label": "13:30"
+        },
+        {
+          "value": "14:00",
+          "label": "14:00"
+        },
+        {
+          "value": "14:30",
+          "label": "14:30"
+        },
+        {
+          "value": "15:00",
+          "label": "15:00"
+        },
+        {
+          "value": "15:30",
+          "label": "15:30"
+        },
+        {
+          "value": "16:00",
+          "label": "16:00"
+        },
+        {
+          "value": "16:30",
+          "label": "16:30"
+        },
+        {
+          "value": "17:00",
+          "label": "17:00"
+        },
+        {
+          "value": "17:30",
+          "label": "17:30"
+        },
+        {
+          "value": "18:00",
+          "label": "18:00"
+        },
+        {
+          "value": "18:30",
+          "label": "18:30"
+        },
+        {
+          "value": "19:00",
+          "label": "19:00"
+        },
+        {
+          "value": "19:30",
+          "label": "19:30"
+        },
+        {
+          "value": "20:00",
+          "label": "20:00"
+        }
+      ],
+      "help": "After this time on collection day, today's bins count as collected and the next collection is shown."
+    }
+  ],
+  "updates": {
+    "on_schedule": [
+      {
+        "kind": "daily",
+        "suggested_at": "00:05"
+      }
+    ]
+  },
+  "design": {
+    "palette": "extended"
+  }
+}

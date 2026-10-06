@@ -1,0 +1,11 @@
+{
+  "tesserae_compat": "1.x",
+  "name": "Bin Day Core",
+  "version": "0.1.0",
+  "kind": "data",
+  "description": "Shared settings for the Bin Day widget: title mappings and fixed-rule bin schedules, edited on this plugin's admin page. No cell of its own.",
+  "icon": "ph-trash",
+  "supports": {
+    "sizes": []
+  }
+}

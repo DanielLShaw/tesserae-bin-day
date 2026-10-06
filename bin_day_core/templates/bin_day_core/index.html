@@ -1,0 +1,104 @@
+{% extends "_base.html" %}
+{% from "_components.html" import card_head, button %}
+{% block title %}Bin Day Core, Tesserae{% endblock %}
+
+{% macro choice_select(name, value, options, label) -%}
+<select name="{{ name }}" id="{{ name }}" aria-label="{{ label }}">
+  {%- for option_value, option_label in options %}
+  <option value="{{ option_value }}"{% if option_value == value %} selected{% endif %}>{{ option_label }}</option>
+  {%- endfor %}
+  {%- if value and value not in options | map('first') %}
+  <option value="{{ value }}" selected>{{ value }}</option>
+  {%- endif %}
+</select>
+{%- endmacro %}
+
+{% macro style_cells(prefix, row) -%}
+<td>{{ choice_select(prefix ~ '-icon', row.icon, icon_choices, 'Icon') }}</td>
+<td>{{ choice_select(prefix ~ '-body_colour', row.body_colour, colour_choices, 'Bin colour') }}</td>
+<td>{{ choice_select(prefix ~ '-lid_colour', row.lid_colour, colour_choices, 'Lid colour') }}</td>
+{%- endmacro %}
+
+{% block main %}
+<div class="page-head">
+  <h1><i class="ph-bold ph-trash" aria-hidden="true"></i> Bin Day Core</h1>
+  <p class="page-blurb">Bin schedules and title mappings for the Bin Day widget. Each Bin Day cell
+    picks a schedule (or, later, a Home Assistant calendar) in its Source option.</p>
+</div>
+
+{% if errors %}
+<section class="card" role="alert">
+  {{ card_head('Nothing saved yet', icon_name='warning-circle', level=2) }}
+  <ul>
+    {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<form method="post" action="{{ url_for('bin_day_core_admin.save') }}">
+  {% for schedule in schedules %}
+  {% set s = 'schedules-' ~ loop.index0 %}
+  <section class="card">
+    {{ card_head(schedule.name or 'New schedule', icon_name='calendar-dots', level=2) }}
+    <input type="hidden" name="{{ s }}-id" value="{{ schedule.id }}">
+    <div class="field">
+      <label for="{{ s }}-name">Schedule name</label>
+      <input type="text" id="{{ s }}-name" name="{{ s }}-name" value="{{ schedule.name }}" placeholder="Home">
+      {% if not schedule.id %}<p class="field-help">Fill in a name and a first bin to add a schedule.</p>{% endif %}
+    </div>
+    <table class="table">
+      <thead>
+        <tr><th>Bin</th><th>First collection</th><th>Every (weeks)</th><th>Icon</th><th>Bin colour</th><th>Lid colour</th><th>Remove</th></tr>
+      </thead>
+      <tbody>
+        {% for stream in schedule.streams %}
+        {% set p = s ~ '-streams-' ~ loop.index0 %}
+        <tr>
+          <td><input type="text" name="{{ p }}-label" value="{{ stream.label }}" aria-label="Bin" placeholder="Refuse"></td>
+          <td><input type="date" name="{{ p }}-first_date" value="{{ stream.first_date }}" aria-label="First collection"></td>
+          <td><input type="number" name="{{ p }}-every_weeks" value="{{ stream.every_weeks }}" min="1" max="{{ max_every_weeks }}" step="1" aria-label="Every (weeks)" placeholder="1"></td>
+          {{ style_cells(p, stream) }}
+          <td>{% if not loop.last %}<input type="checkbox" name="{{ p }}-delete" aria-label="Remove {{ stream.label }}">{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="field-help">The first collection date sets which week of the cycle this bin falls in.
+      Leave icon and colours on Automatic to work them out from the bin's name.</p>
+    {% if schedule.id %}
+    <div class="field field--check">
+      <label><input type="checkbox" name="{{ s }}-delete"> Delete this schedule</label>
+    </div>
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <section class="card">
+    {{ card_head('Title mappings', icon_name='tag', level=2) }}
+    <p class="field-help">Bin names are matched to an icon and colour automatically (colour words like
+      "brown", then words like "recycling" or "garden"). Add a mapping when a name needs help, for
+      example Liverpool's "Green" bin to the garden icon. A mapping matches a whole name, or whole
+      words within one, ignoring case.</p>
+    <table class="table">
+      <thead>
+        <tr><th>Name contains</th><th>Show as</th><th>Icon</th><th>Bin colour</th><th>Lid colour</th><th>Remove</th></tr>
+      </thead>
+      <tbody>
+        {% for mapping in mappings %}
+        {% set m = 'mappings-' ~ loop.index0 %}
+        <tr>
+          <td><input type="text" name="{{ m }}-match" value="{{ mapping.match }}" aria-label="Name contains" placeholder="Green"></td>
+          <td><input type="text" name="{{ m }}-label" value="{{ mapping.label }}" aria-label="Show as" placeholder="(unchanged)"></td>
+          {{ style_cells(m, mapping) }}
+          <td>{% if not loop.last %}<input type="checkbox" name="{{ m }}-delete" aria-label="Remove {{ mapping.match }}">{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <div class="actions">
+    {{ button('Save', icon='floppy-disk') }}
+  </div>
+</form>
+{% endblock %}

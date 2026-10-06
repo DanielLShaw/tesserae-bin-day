@@ -1,0 +1,148 @@
+/* Bin Day widget. Sizes scale with the cell (cqmin), not media queries;
+   no motion. Text and surfaces use Spectra tokens. Bin fills come from
+   the data (--body, --ink); the black outline keeps white and light bins
+   visible on light surfaces. */
+
+.bin-day {
+  --bin-outline: #000000; /* identity: bin outlines are always black */
+  --chip: clamp(24px, 30cqmin, 96px);
+}
+
+.bin-day .w-body {
+  justify-content: space-between;
+}
+
+/* ---- chips: one rounded square per bin ---------------------------------- */
+.bin-day .chips {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--chip) * 0.15);
+  min-width: 0;
+}
+
+.bin-day .chips.many {
+  --chip: clamp(18px, 22cqmin, 72px);
+}
+
+/* A full sm row shares its line with the day label, so it only shrinks as
+   far as the width needs: three chips plus "Tomorrow" across the cell. */
+.bin-day .day-row .chips.many {
+  --chip: clamp(18px, min(30cqmin, 14cqw), 72px);
+}
+
+.bin-day .chip,
+.bin-day .more {
+  flex: 0 0 auto;
+  width: var(--chip);
+  height: var(--chip);
+  border-radius: calc(var(--chip) * 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bin-day .chip {
+  background: var(--body);
+  color: var(--ink);
+  outline: max(2px, calc(var(--chip) * 0.05)) solid var(--bin-outline);
+  outline-offset: calc(max(2px, calc(var(--chip) * 0.05)) * -1);
+}
+
+.bin-day .chip i {
+  font-size: calc(var(--chip) * 0.62);
+  line-height: 1;
+}
+
+.bin-day .more {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-weight: var(--fw-bold);
+  font-size: calc(var(--chip) * 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- xs: the next collection, big count -------------------------------- */
+.bin-day .count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25em;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+
+.bin-day .count-number {
+  font-size: clamp(28px, 36cqmin, 140px);
+  font-variant-numeric: tabular-nums;
+}
+
+.bin-day .count-unit {
+  font-size: clamp(14px, 14cqmin, 56px);
+}
+
+/* ---- sm (and md/lg for now): one row per collection day ---------------- */
+.bin-day .day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.bin-day .day-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: clamp(14px, min(15cqmin, 8cqw), 56px);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- sm busy mode: the upcoming day, its label above a 6 by 2 grid ----- */
+.bin-day .day-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.bin-day .chips.grid {
+  /* As big as fits: a line of --per-line chips (each gap is 0.15 of a chip)
+     across the width the padding leaves, and --lines lines in half the
+     height (the label and padding take the rest). client.js sets both. */
+  --chip: min(
+    calc(88cqw / (var(--per-line, 6) * 1.15 - 0.15)),
+    calc(50cqh / var(--lines, 2)),
+    96px
+  );
+  flex-wrap: wrap;
+  align-content: flex-start;
+  max-width: calc(var(--chip) * 6.75); /* six chips and five gaps a line */
+}
+
+/* ---- empty state and error tile ---------------------------------------- */
+.bin-day .notice {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  text-align: left;
+}
+
+.bin-day .notice i {
+  flex: 0 0 auto;
+  font-size: clamp(24px, 22cqmin, 96px);
+  color: var(--icon);
+}
+
+.bin-day .notice p {
+  margin: 0;
+  font-size: clamp(14px, 12cqmin, 40px);
+  font-weight: var(--fw-bold);
+}
+
+.bin-day .notice.is-error p {
+  font-size: clamp(12px, 7cqmin, 20px);
+  font-weight: var(--fw-medium);
+}

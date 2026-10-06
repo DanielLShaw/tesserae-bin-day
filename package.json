@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --experimental-test-coverage --test-coverage-include=bin_day/client.js --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=95 'tests/js/**/*.test.js'"
+  }
+}

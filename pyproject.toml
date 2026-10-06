@@ -18,8 +18,17 @@ dev = [
     "ruff>=0.6",
 ]
 
+# Integration tests boot a real Tesserae app from a pinned checkout in
+# .tesserae/ (gitignored):
+#   git clone --depth 1 --branch v0.436.1 https://github.com/dmellok/tesserae .tesserae
+host = ["tesserae"]
+
 [tool.uv]
 package = false
+default-groups = ["dev", "host"]
+
+[tool.uv.sources]
+tesserae = { path = ".tesserae", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -30,7 +39,7 @@ addopts = "-ra --strict-markers --import-mode=importlib --cov --cov-report=term-
 
 [tool.coverage.run]
 branch = true
-source = ["bin_day_core"]  # add "bin_day" once that plugin has Python code
+source = ["bin_day_core", "bin_day"]
 
 [tool.coverage.report]
 fail_under = 95

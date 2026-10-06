@@ -192,6 +192,34 @@ SCENARIOS = [
         colours="mono",
     ),
     Scenario(
+        "palette-dark",
+        "Seven bin colours side by side (no icons), for checking the palette.",
+        [
+            _stream(f"{colour} bin", "2026-10-07", 1)
+            for colour in ("Black", "Grey", "Blue", "Green", "Brown", "Purple", "Maroon")
+        ],
+        _at(6, 8),
+        [(1, [None] * 7)],
+    ),
+    Scenario(
+        "palette-light",
+        "The other seven bin colours side by side (no icons).",
+        [
+            _stream(f"{colour} bin", "2026-10-07", 1)
+            for colour in (
+                "Burgundy",
+                "Red",
+                "Orange",
+                "Yellow",
+                "Light blue",
+                "Light grey",
+                "White",
+            )
+        ],
+        _at(6, 8),
+        [(1, [None] * 7)],
+    ),
+    Scenario(
         "empty",
         "Nothing in the next 7 days.",
         [_stream("Refuse", "2026-12-01", 1)],

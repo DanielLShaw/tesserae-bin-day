@@ -3,9 +3,13 @@
     uv run preview/shoot.py                         all scenarios, all sizes, light theme
     uv run preview/shoot.py -s today -z xs -z sm    some scenarios and sizes
     uv run preview/shoot.py -t light -t dark -t paper   several themes
+    uv run preview/shoot.py --e6                    also simulate the E1002's inks
 
 Writes screenshots/<scenario>/<size>.png (``<size>-<theme>.png`` for themes
 other than light) and screenshots/index.html, a contact sheet of the lot.
+With --e6, each shot also gets an ``-e6`` twin: Tesserae's own quantiser
+maps it to the six Spectra 6 inks the reTerminal E1002 prints (Floyd-
+Steinberg, as its packer does), shown in the inks' measured colours.
 A full run (no -s/-z/-t) replaces the whole folder, so it holds only the
 latest shots; narrower runs update just the shots they take. Shots are
 rendered into a staging folder first, so a failed run changes nothing.
@@ -44,6 +48,7 @@ def parse_args():
     parser.add_argument("-z", "--size", action="append", choices=SIZES, help="repeatable")
     parser.add_argument("-t", "--theme", action="append", help="repeatable; default light")
     parser.add_argument("-o", "--out", type=Path, default=REPO / "screenshots")
+    parser.add_argument("--e6", action="store_true", help="add Spectra 6 panel simulations")
     return parser.parse_args()
 
 
@@ -99,6 +104,22 @@ def shot_name(size, theme):
     return f"{size}.png" if theme == "light" else f"{size}-{theme}.png"
 
 
+def simulate_e6(png_path, out_path):
+    """What the E1002 prints: ``png_path`` dithered to the six Spectra 6 inks
+    as Tesserae's packer does, each ink drawn in its measured colour."""
+    import numpy as np
+    from app.quantizer import WAVESHARE_E6_CALIBRATED_PALETTE, WAVESHARE_E6_PALETTE, quantize
+    from PIL import Image
+
+    inks = np.array(quantize(Image.open(png_path), palette=WAVESHARE_E6_PALETTE))
+    printed = inks.copy()
+    for nominal, measured in zip(
+        WAVESHARE_E6_PALETTE, WAVESHARE_E6_CALIBRATED_PALETTE, strict=True
+    ):
+        printed[(inks == nominal).all(axis=-1)] = measured
+    Image.fromarray(printed).save(out_path)
+
+
 def _themes_present(out):
     """Themes with shots in ``out``: light first, then the rest by name."""
     names = {p.stem.split("-", 1)[1] for p in out.glob("*/*-*.png")}
@@ -130,7 +151,7 @@ def write_contact_sheet(out):
     )
 
 
-def shoot(stage, scenarios, sizes, themes):
+def shoot(stage, scenarios, sizes, themes, e6=False):
     """Render every requested shot into ``stage``; returns how many."""
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     app, core, data_root = boot_app()
@@ -157,8 +178,11 @@ def shoot(stage, scenarios, sizes, themes):
                         page.goto(f"{base}&size={size}&theme={quote(theme)}&opts={opts}")
                         page.wait_for_function("window.__tesseraeComposed === true")
                         page.evaluate("document.fonts.ready")
-                        page.locator(".cell").first.screenshot(path=folder / shot_name(size, theme))
+                        shot = folder / shot_name(size, theme)
+                        page.locator(".cell").first.screenshot(path=shot)
                         count += 1
+                        if e6:
+                            simulate_e6(shot, shot.with_name(f"{shot.stem}-e6.png"))
             browser.close()
     finally:
         server.shutdown()
@@ -171,12 +195,12 @@ def main():
     scenarios = [s for s in SCENARIOS if not args.scenario or s.name in args.scenario]
     sizes = args.size or list(SIZES)
     themes = args.theme or ["light"]
-    full_run = not args.scenario and not args.size and not args.theme
+    full_run = not (args.scenario or args.size or args.theme or args.e6)
 
     # Render into a staging folder so a failed run leaves the last shots intact.
     stage = Path(tempfile.mkdtemp(prefix="bin-day-stage-"))
     try:
-        count = shoot(stage, scenarios, sizes, themes)
+        count = shoot(stage, scenarios, sizes, themes, e6=args.e6)
         if full_run and args.out.exists():
             shutil.rmtree(args.out)
         shutil.copytree(stage, args.out, dirs_exist_ok=True)

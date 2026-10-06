@@ -148,7 +148,8 @@ screenshots/                 gitignored, always the latest run
   index.html                 contact sheet: one row per scenario
   next-week/xs.png ... lg.png
   today/  after-cutoff/  colour-names/  busy-day/  busy-second-day/
-  overflow/  overflow-second-day/  black-and-white/  empty/  error/
+  overflow/  overflow-second-day/  black-and-white/  palette-dark/  palette-light/
+  empty/  error/
 ```
 
 Open `screenshots/index.html` to compare everything at once. Options, all
@@ -158,7 +159,13 @@ repeatable:
 uv run preview/shoot.py -s today -s empty     # only these scenarios
 uv run preview/shoot.py -z xs -z sm           # only these sizes
 uv run preview/shoot.py -t dark -t paper      # other themes, saved as <size>-<theme>.png
+uv run preview/shoot.py --e6                  # also <size>-e6.png: as a Spectra 6 panel prints it
 ```
+
+`--e6` runs each shot through Tesserae's own quantiser, dithering it to the
+six Spectra 6 inks as the reTerminal E1002's packer does, and draws each ink
+in its measured colour: a preview of the printed panel. The `palette-dark`
+and `palette-light` scenarios lay out every bin colour for checking this.
 
 A full run replaces the folder; a narrower run updates only the shots it
 takes. Each scenario has its own schedule, mappings and pinned clock; to add

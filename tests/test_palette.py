@@ -7,6 +7,8 @@ import pytest
 from bin_day_core.bin_logic import colour_hex, display_stream, icon_ink, mono_fill
 from bin_day_core.bin_logic.resolve import COLOUR_WORDS, FALLBACK_COLOUR
 
+from .conftest import HAVE_TESSERAE
+
 HEX6 = re.compile(r"#[0-9a-f]{6}")
 PALETTE_NAMES = sorted({name for _, name in COLOUR_WORDS} | {FALLBACK_COLOUR})
 
@@ -49,16 +51,39 @@ def test_unknown_colour_falls_back_to_the_grey_fill():
         ("#ffffff", "#000000"),
         ("#1f4fd1", "#ffffff"),
         ("#f5c400", "#000000"),
+        # Panel inks go by how they print: green and red print dark.
+        ("#00ff00", "#ffffff"),
+        ("#ff0000", "#ffffff"),
+        ("#0000ff", "#ffffff"),
+        ("#ffff00", "#000000"),
     ],
 )
 def test_icon_ink_is_white_on_dark_fills_and_black_on_light(fill, ink):
     assert icon_ink(fill) == ink
 
 
-@pytest.mark.parametrize("name", PALETTE_NAMES)
-def test_icon_on_every_palette_fill_meets_large_graphic_contrast(name):
+# The six Spectra 6 ink values; fills of exactly these print as solid ink.
+PANEL_INKS = {"#000000", "#ffffff", "#ffff00", "#ff0000", "#0000ff", "#00ff00"}
+
+
+@pytest.mark.parametrize("name", [n for n in PALETTE_NAMES if colour_hex(n) not in PANEL_INKS])
+def test_icon_on_every_other_palette_fill_meets_large_graphic_contrast(name):
     fill = colour_hex(name)
     assert wcag_contrast(fill, icon_ink(fill)) >= 3
+
+
+@pytest.mark.skipif(not HAVE_TESSERAE, reason="needs a Tesserae checkout")
+@pytest.mark.parametrize("ink", sorted(PANEL_INKS))
+def test_icon_on_each_ink_meets_large_graphic_contrast_as_printed(ink):
+    from app.quantizer import WAVESHARE_E6_CALIBRATED_PALETTE, WAVESHARE_E6_PALETTE
+
+    printed = {
+        f"#{r:02x}{g:02x}{b:02x}": f"#{pr:02x}{pg:02x}{pb:02x}"
+        for (r, g, b), (pr, pg, pb) in zip(
+            WAVESHARE_E6_PALETTE, WAVESHARE_E6_CALIBRATED_PALETTE, strict=True
+        )
+    }
+    assert wcag_contrast(printed[ink], icon_ink(ink)) >= 3
 
 
 def test_display_stream_converts_colours_and_adds_icon_colour():
@@ -156,3 +181,12 @@ class TestMonoFill:
     def test_stockport_bins_all_look_different(self):
         fills = [mono_fill(stream_of("other", c)) for c in ("black", "green", "blue", "brown")]
         assert fills == ["solid", "hatched", "white", "dotted"]
+
+
+@pytest.mark.skipif(not HAVE_TESSERAE, reason="needs a Tesserae checkout")
+@pytest.mark.parametrize("name", ["black", "white", "blue", "green", "red", "yellow", "orange"])
+def test_colours_with_a_matching_panel_ink_use_it_exactly_so_they_print_solid(name):
+    from app.quantizer import SPECTRA_6_PALETTE
+
+    inks = {f"#{r:02x}{g:02x}{b:02x}" for r, g, b in SPECTRA_6_PALETTE}
+    assert colour_hex(name) in inks

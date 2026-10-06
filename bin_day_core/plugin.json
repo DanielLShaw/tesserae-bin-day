@@ -3,7 +3,7 @@
   "name": "Bin Day Core",
   "version": "0.1.0",
   "kind": "data",
-  "description": "Shared settings for the Bin Day widget: title mappings and fixed-rule bin schedules, edited on this plugin's admin page. No cell of its own.",
+  "description": "Where every Bin Day cell gets its bins (a Home Assistant calendar or a schedule you enter) and how each bin looks, set on its page under Widgets, Admin pages. No cell of its own.",
   "icon": "ph-trash",
   "supports": {
     "sizes": []

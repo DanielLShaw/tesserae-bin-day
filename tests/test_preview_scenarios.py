@@ -35,12 +35,23 @@ def test_scenario_renders_what_it_is_named_for(app, client, registry, monkeypatc
         assert shown == scenario.expect
 
 
-@pytest.mark.parametrize("scenario", [s for s in SCENARIOS if s.docs], ids=lambda s: s.name)
-@pytest.mark.parametrize("size", ["lg", "sm"])
-def test_each_docs_scenario_has_its_images_in_the_docs(scenario, size):
-    image = f"images/{scenario.name}-{size}.png"
+DOCS_IMAGES = [f"images/{s.name}-{size}.png" for s in SCENARIOS for size in s.docs]
+
+
+@pytest.mark.parametrize("image", DOCS_IMAGES)
+def test_each_docs_image_is_rendered_and_shown(image):
     assert (DOCS / image).is_file(), "run: uv run preview/shoot.py --docs"
-    assert f"({image})" in (DOCS / "bin-colours.md").read_text()
+    pages = (REPO / "README.md").read_text() + (DOCS / "bin-colours.md").read_text()
+    assert image in pages
+
+
+def test_the_readme_shows_every_size():
+    assert {"xs", "sm", "md", "lg"} <= {
+        size
+        for s in SCENARIOS
+        for size in s.docs
+        if f"docs/images/{s.name}-{size}.png" in (REPO / "README.md").read_text()
+    }
 
 
 def test_scenario_names_are_unique_folder_names():

@@ -156,9 +156,21 @@ class TestSource:
         page(client)
         assert liverpool.requests == []
 
+    def test_the_calendar_section_links_to_waste_collection_schedule(self, client, stored):
+        stored(source="calendar")
+        html = page(client)
+        section = re.search(r'<section[^>]*data-show-for="calendar".*?</section>', html, re.S)[0]
+        assert (
+            '<a href="https://github.com/mampfes/hacs_waste_collection_schedule" '
+            'target="_blank" rel="noreferrer">Waste Collection Schedule</a>'
+        ) in section
+
     def test_without_ha_core_connected_the_page_says_how_to_connect(self, client, stored):
         stored(source="calendar")
-        assert "Connect Home Assistant Core" in page(client)
+        html = page(client)
+        assert "Connect Home Assistant Core" in html
+        assert '<a href="/settings/plugins#plugin-ha_core">' in html
+        assert "Settings, Widgets, Home Assistant Core" in html
 
 
 class TestSchedule:

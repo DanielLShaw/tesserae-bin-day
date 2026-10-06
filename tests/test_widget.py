@@ -84,7 +84,9 @@ class TestManualSchedule:
 
     def test_no_bins_yet_asks_for_them(self, client, save):
         save()
-        assert cell_data(client)["error"].startswith("Add your bins in Bin Day Core")
+        assert cell_data(client)["error"] == (
+            "Add your bins in Bin Day Core (Widgets menu, Admin pages)."
+        )
 
     def test_an_invalid_saved_bin_is_named(self, client, save):
         save(schedule=[bin_("Refuse", every_weeks=0)])
@@ -96,7 +98,9 @@ class TestManualSchedule:
 class TestOtherErrors:
     def test_calendar_source_with_no_calendar_chosen(self, client, save):
         save(source="calendar")
-        assert cell_data(client)["error"].startswith("Choose your bin calendar in Bin Day Core")
+        assert cell_data(client)["error"] == (
+            "Choose your bin calendar in Bin Day Core (Widgets menu, Admin pages)."
+        )
 
     def test_missing_core_plugin_is_reported(self, client, registry, monkeypatch):
         monkeypatch.delitem(registry.plugins, "bin_day_core")

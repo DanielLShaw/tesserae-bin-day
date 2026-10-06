@@ -5,8 +5,9 @@ schedule of bins), a pinned clock, and the cell options to render.
 tests/test_preview_scenarios.py: ``[(days_until, [icon, ...]), ...]`` for
 each collection day, or the start of the error tile's message.
 
-``docs`` scenarios also illustrate docs/bin-colours.md: ``preview/shoot.py
---docs`` renders them at LG and SM into docs/images/.
+``docs`` lists the sizes a scenario is rendered at for the README and
+docs/bin-colours.md: ``preview/shoot.py --docs`` writes them to
+docs/images/<scenario>-<size>.png.
 """
 
 from dataclasses import dataclass
@@ -40,6 +41,13 @@ LIVERPOOL = [
 ]
 
 
+# Liverpool's bins as the README sets them up: purple refuse, garden icon on Green.
+LIVERPOOL_SET_UP = [
+    _stream("Refuse", "2026-10-07", 2, body_colour="purple"),
+    _stream("Green", "2026-10-07", 2, icon="leaf"),
+    _stream("Recycling", "2026-10-12", 2),
+]
+
 # Milton Keynes' bins: black bodies with black, blue and red lids.
 LID_CODED = [
     _stream("Black lid rubbish", "2026-10-07", 2),
@@ -59,7 +67,7 @@ class Scenario:
     colours: str = "auto"
     source: str = "schedule"
     theme: str | None = None  # render in this theme whatever the run's
-    docs: bool = False
+    docs: tuple = ()
 
     @property
     def config(self):
@@ -252,14 +260,28 @@ SCENARIOS = [
     Scenario(
         "solid-bins",
         "Liverpool: each bin one colour, lid included. The chips match the bins.",
-        [
-            _stream("Refuse", "2026-10-07", 2, body_colour="purple"),
-            _stream("Green", "2026-10-07", 2, icon="leaf"),
-            _stream("Recycling", "2026-10-12", 2),
-        ],
+        LIVERPOOL_SET_UP,
         _at(6, 8),
         [(1, ["trash", "leaf"]), (6, ["recycle"])],
-        docs=True,
+        docs=("xs", "sm", "md", "lg"),
+    ),
+    Scenario(
+        "solid-bins-dark",
+        "The Liverpool bins in the dark theme.",
+        LIVERPOOL_SET_UP,
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        theme="dark",
+        docs=("lg",),
+    ),
+    Scenario(
+        "solid-bins-mono",
+        "The Liverpool bins in Black & white: refuse solid, garden hatched, recycling white.",
+        LIVERPOOL_SET_UP,
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        colours="mono",
+        docs=("lg",),
     ),
     Scenario(
         "lid-colours",
@@ -268,7 +290,7 @@ SCENARIOS = [
         LID_CODED,
         _at(6, 8),
         [(1, ["trash", "recycle"]), (6, ["newspaper"])],
-        docs=True,
+        docs=("lg", "sm"),
     ),
     Scenario(
         "lid-colours-mono",
@@ -277,7 +299,7 @@ SCENARIOS = [
         _at(6, 8),
         [(1, ["trash", "recycle"]), (6, ["newspaper"])],
         colours="mono",
-        docs=True,
+        docs=("lg", "sm"),
     ),
     Scenario(
         "mixed-bins",
@@ -290,7 +312,7 @@ SCENARIOS = [
         ],
         _at(6, 8),
         [(1, ["trash", "leaf"]), (6, ["wine", "newspaper"])],
-        docs=True,
+        docs=("lg", "sm"),
     ),
     Scenario(
         "set-by-hand",
@@ -304,7 +326,7 @@ SCENARIOS = [
         ],
         _at(6, 8),
         [(1, ["trash", "recycle"]), (6, ["leaf", "newspaper"])],
-        docs=True,
+        docs=("lg", "sm"),
     ),
     Scenario(
         "empty",

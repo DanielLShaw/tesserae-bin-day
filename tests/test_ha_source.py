@@ -109,7 +109,10 @@ class TestFetch:
 
     def test_ha_core_not_connected(self, client, clock, use_calendar):
         use_calendar(LIVERPOOL)
-        assert cell_data(client)["error"].startswith("Needs Home Assistant Core")
+        assert cell_data(client)["error"] == (
+            "Needs Home Assistant Core: set your Home Assistant URL and access "
+            "token in Settings, Widgets, Home Assistant Core."
+        )
 
     def test_ha_core_plugin_missing(self, client, registry, clock, use_calendar, monkeypatch):
         use_calendar(LIVERPOOL)

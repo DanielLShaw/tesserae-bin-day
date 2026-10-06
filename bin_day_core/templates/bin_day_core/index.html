@@ -121,7 +121,7 @@
     {% if ha_problem == 'unconfigured' %}
     <p class="field-help bd-note"><i class="ph ph-warning-circle" aria-hidden="true"></i>
       Connect Home Assistant Core first: add your Home Assistant URL and an access token in
-      <a href="/settings/plugins/ha_core">Settings, Plugins, Home Assistant Core</a>.</p>
+      <a href="/settings/plugins#plugin-ha_core">Settings, Widgets, Home Assistant Core</a>.</p>
     {% elif ha_problem == 'unreachable' %}
     <p class="field-help bd-note"><i class="ph ph-warning-circle" aria-hidden="true"></i>
       Home Assistant can't be reached right now: check Home Assistant Core's URL and token.</p>
@@ -138,6 +138,9 @@
         <option value="{{ config.calendar }}" selected>{{ config.calendar }}</option>
         {%- endif %}
       </select>
+      <p class="field-help">No bins calendar yet?
+        <a href="https://github.com/mampfes/hacs_waste_collection_schedule" target="_blank" rel="noreferrer">Waste Collection Schedule</a>
+        adds one to Home Assistant for hundreds of councils and waste companies.</p>
     </div>
 
     <h3 class="bd-sub">Bins in this calendar</h3>

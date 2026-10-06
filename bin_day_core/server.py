@@ -52,12 +52,14 @@ logic = _load_logic()
 
 DEFAULT_CONFIG = {"source": "schedule", "calendar": "", "schedule": [], "mappings": []}
 DISCOVERY_DAYS = 56  # how far ahead the admin page looks for a calendar's bin titles
+# Where Tesserae puts things: Home Assistant Core's connection is on the
+# Settings page's Widgets tab; Bin Day Core's page is under the Widgets menu.
 NEEDS_HA_CORE = (
-    "Needs Home Assistant Core: install it, then set your Home Assistant URL "
-    "and access token in Settings, Plugins, Home Assistant Core."
+    "Needs Home Assistant Core: set your Home Assistant URL and access token in "
+    "Settings, Widgets, Home Assistant Core."
 )
-NEEDS_BINS = "Add your bins in Bin Day Core (Plugins, Bin Day Core)."
-NEEDS_CALENDAR = "Choose your bin calendar in Bin Day Core (Plugins, Bin Day Core)."
+NEEDS_BINS = "Add your bins in Bin Day Core (Widgets menu, Admin pages)."
+NEEDS_CALENDAR = "Choose your bin calendar in Bin Day Core (Widgets menu, Admin pages)."
 
 
 def _data_dir():

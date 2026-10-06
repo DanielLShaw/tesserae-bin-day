@@ -17,9 +17,9 @@ Steinberg, as its packer does), shown in the inks' measured colours.
 A full run (no -s/-z/-t/-d/--e6) replaces the whole folder, so it holds only the
 latest shots; narrower runs update just the shots they take. Shots are
 rendered into a staging folder first, so a failed run changes nothing.
---docs instead renders each docs scenario at LG and SM into
-docs/images/<scenario>-<size>.png for docs/bin-colours.md; those images are
-committed.
+--docs instead renders each scenario's ``docs`` sizes into
+docs/images/<scenario>-<size>.png, for the README and docs/bin-colours.md;
+those images are committed.
 
 Boots a real Tesserae app from the pinned checkout in .tesserae/ with this
 repo's plugins installed, saves each scenario's config from preview/scenarios.py, pins
@@ -46,7 +46,6 @@ from werkzeug.serving import make_server
 REPO = Path(__file__).resolve().parent.parent
 TESSERAE_SRC = Path(os.environ.get("TESSERAE_SRC", REPO / ".tesserae")).expanduser()
 DOCS_IMAGES = REPO / "docs" / "images"
-DOCS_SIZES = ("lg", "sm")
 SIZES = ("xs", "sm", "md", "lg")
 DIMS = re.compile(r"^(\d{2,4})x(\d{2,4})$")
 INSTALL_HINT = "uv run playwright install chromium --only-shell"
@@ -227,21 +226,19 @@ def shoot(stage, scenarios, views, themes, e6=False):
 
 
 def shoot_docs():
-    """docs/images/<scenario>-<size>.png: each docs scenario at LG and SM."""
+    """docs/images/<scenario>-<size>.png: each scenario at its ``docs`` sizes."""
     scenarios = [s for s in SCENARIOS if s.docs]
+    sizes = [size for size in SIZES if any(size in s.docs for s in scenarios)]
     stage = Path(tempfile.mkdtemp(prefix="bin-day-stage-"))
     try:
-        count = shoot(stage, scenarios, DOCS_SIZES, ["light"])
+        shoot(stage, scenarios, sizes, ["light"])
         DOCS_IMAGES.mkdir(parents=True, exist_ok=True)
-        for scenario in scenarios:
-            for size in DOCS_SIZES:
-                shutil.copyfile(
-                    stage / scenario.name / f"{size}.png",
-                    DOCS_IMAGES / f"{scenario.name}-{size}.png",
-                )
+        images = [(s.name, size) for s in scenarios for size in s.docs]
+        for name, size in images:
+            shutil.copyfile(stage / name / f"{size}.png", DOCS_IMAGES / f"{name}-{size}.png")
     finally:
         shutil.rmtree(stage, ignore_errors=True)
-    print(f"{count} images in {DOCS_IMAGES}")
+    print(f"{len(images)} images in {DOCS_IMAGES}")
 
 
 def main():

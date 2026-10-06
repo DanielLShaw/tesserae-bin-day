@@ -3,7 +3,7 @@
   "name": "Bin Day",
   "version": "0.1.0",
   "kind": "widget",
-  "description": "Which bins are collected in the next 7 days and how many days until each collection, from a Home Assistant calendar (such as Waste Collection Schedule's) or a manual schedule set up in the Bin Day Core plugin.",
+  "description": "Which bins are collected in the next 7 days and how many days until each collection, from a Home Assistant calendar (such as Waste Collection Schedule's) or a schedule you enter. Set your bins up in Bin Day Core.",
   "icon": "ph-trash",
   "supports": {
     "sizes": [

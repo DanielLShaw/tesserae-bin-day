@@ -149,8 +149,9 @@ bins, so check yours.
 
 ## Updating the images
 
-The images are screenshot scenarios from `preview/scenarios.py` (those with
-`docs=True`). To render them again after a change to the widget:
+The images are screenshot scenarios from `preview/scenarios.py`, each
+rendered at the sizes in its `docs` field. To render them again after a
+change to the widget:
 
 ```sh
 uv run preview/shoot.py --docs

@@ -79,14 +79,14 @@ node --check bin_day/client.js bin_day_core/static/admin.js
 | `test_schedule.py` | Fixed-rule dates: 1 to 8 weekly cycles and their phase, future start, year boundary, clock changes |
 | `test_collections.py` | The 0 to 7 day window, the cutoff time, same-day merge, de-duplication, the `next_change_at` refresh hint |
 | `test_palette.py` | Colour names to hex, a black or white icon that contrasts with each bin and chip fill, and each bin's black-and-white fill |
-| `test_config.py` | Parsing and validating the admin form: source, calendar, bins, custom icons and colours, hidden rows |
+| `test_config.py` | Parsing and validating the admin form: source, calendar, bins, each calendar's title mappings, custom icons and colours, hidden rows |
 | `test_payload.py` | The data a cell receives from `fetch()` |
 | `test_calendar.py` | Home Assistant events to dates (all-day and timed, across clock changes), the query range, cache freshness |
 | `test_ha_source.py` | The calendar source end to end against a fake Home Assistant: the calendar chosen in Core, query, renamed calendar, not connected, the 1-hour cache and 24-hour fallback |
 | `test_plugins_load.py`, `test_manifests.py` | Both plugins load in Tesserae, validate against its schema, offer the cutoff and colour options and a daily refresh |
 | `test_widget.py` | `fetch()` end to end, including every error tile |
-| `test_admin.py`, `test_core_server.py` | The admin page (source, bins, a calendar's bin names, saving and its errors), config storage, timezone and plugin reload |
-| `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, listing a newly chosen calendar's bins |
+| `test_admin.py`, `test_core_server.py` | The admin page (source, bins, a calendar's bin names and its own saved settings, the rows endpoint, saving and its errors), config storage and its older shape, timezone and plugin reload |
+| `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, switching calendars (only that calendar's bins show, unsaved edits survive, every calendar shown is saved) |
 | `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for; the docs have each docs scenario's images |
 | `test_release.py` | Every root folder other than the two plugins is left out of the release tarball |
 | `tests/js/client.test.js` | Day labels, chip overflow, XS/SM/empty/error layouts, HTML and CSS escaping |

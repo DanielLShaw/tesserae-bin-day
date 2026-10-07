@@ -20,7 +20,7 @@ def core(app, registry):
     def save(**config):
         with app.app_context():
             module.save_config(
-                {"source": "schedule", "calendar": "", "schedule": [], "mappings": [], **config}
+                {"source": "schedule", "calendar": "", "schedule": [], "mappings": {}, **config}
             )
 
     def load():
@@ -133,35 +133,118 @@ def test_a_new_row_is_saved(tab, core):
     )
 
 
-def test_choosing_a_calendar_lists_its_bins(tab, core, ha_connected):
+COTTAGE = "calendar.cottage"
+EMPTY = "calendar.nothing_due"
+
+
+@pytest.fixture
+def two_calendars(ha_connected):
     ha_connected.add_calendar(
         LIVERPOOL,
         "Liverpool City Council",
         [wcs_event("Refuse", "2026-10-07"), wcs_event("Green", "2026-10-07")],
     )
+    ha_connected.add_calendar(COTTAGE, "Cottage", [wcs_event("Garden waste", "2026-10-09")])
+    ha_connected.add_calendar(EMPTY, "Nothing due", [])
+    return ha_connected
+
+
+def shown_list(tab):
+    """The rows of the calendar now chosen."""
+    return tab.locator("[data-calendar-rows]:not([hidden])")
+
+
+def shown_titles(tab, count):
+    titles = shown_list(tab).locator("[data-title-text]")
+    titles.nth(count - 1).wait_for()
+    return [t.inner_text() for t in titles.all()]
+
+
+def choose(tab, calendar):
+    tab.select_option("[data-calendar-select]", calendar)
+
+
+def test_choosing_a_calendar_lists_its_bins(tab, core, two_calendars):
     core.save(source="calendar")
     open_admin(tab)
-    tab.select_option("[data-calendar-select]", LIVERPOOL)
-    titles = tab.locator('[data-rows="mappings"] [data-title-text]')
-    titles.nth(1).wait_for()
-    assert [t.inner_text() for t in titles.all()] == ["Refuse", "Green"]
-    names = [
-        i.get_attribute("name")
-        for i in tab.locator('[data-rows="mappings"] [data-title-input]').all()
-    ]
+    assert not tab.locator("[data-calendar-bins]").is_visible()
+    choose(tab, LIVERPOOL)
+    assert shown_titles(tab, 2) == ["Refuse", "Green"]
+    names = [i.get_attribute("name") for i in shown_list(tab).locator("[name$=-match]").all()]
     assert names == ["mappings-0-match", "mappings-1-match"]
+    assert tab.locator("[data-calendar-bins]").is_visible()
 
 
-def test_a_name_already_listed_is_not_added_again(tab, core, ha_connected):
-    ha_connected.add_calendar(
-        LIVERPOOL,
-        "Liverpool City Council",
-        [wcs_event("Refuse", "2026-10-07"), wcs_event("Green", "2026-10-07")],
-    )
-    refuse = {"match": "refuse", "label": "", "icon": "", "body_colour": "purple"}
-    core.save(source="calendar", mappings=[{**refuse, "lid_colour": "", "hide": False}])
+def test_switching_calendar_shows_only_that_calendars_bins(tab, core, two_calendars):
+    core.save(source="calendar", calendar=LIVERPOOL)
     open_admin(tab)
-    tab.select_option("[data-calendar-select]", LIVERPOOL)
-    tab.locator("[data-title-text]").first.wait_for()
-    matches = tab.locator('[data-rows="mappings"] [name$="-match"]')
-    assert [m.input_value() for m in matches.all()] == ["refuse", "Green"]
+    assert shown_titles(tab, 2) == ["Refuse", "Green"]
+    choose(tab, COTTAGE)
+    assert shown_titles(tab, 1) == ["Garden waste"]
+    assert shown_list(tab).count() == 1
+    choose(tab, LIVERPOOL)
+    assert shown_titles(tab, 2) == ["Refuse", "Green"]
+    choose(tab, "")
+    assert not tab.locator("[data-calendar-bins]").is_visible()
+
+
+def test_the_line_above_the_bins_follows_the_chosen_calendar(tab, core, two_calendars):
+    core.save(source="calendar", calendar=LIVERPOOL)
+    open_admin(tab)
+    status = tab.locator("[data-titles-status]")
+    choose(tab, EMPTY)
+    tab.wait_for_function(
+        "document.querySelector('[data-titles-status]').textContent.startsWith('No bin')"
+    )
+    assert status.inner_text() == "No bin collections in the next 8 weeks."
+    choose(tab, LIVERPOOL)
+    assert status.text_content() == ""
+    choose(tab, EMPTY)
+    assert status.inner_text() == "No bin collections in the next 8 weeks."
+
+
+def test_a_calendars_saved_settings_come_with_its_bins(tab, core, two_calendars):
+    refuse = {"match": "refuse", "label": "", "icon": "", "body_colour": "purple"}
+    core.save(
+        source="calendar",
+        mappings={LIVERPOOL: [{**refuse, "lid_colour": "", "hide": False}]},
+    )
+    open_admin(tab)
+    choose(tab, LIVERPOOL)
+    assert shown_titles(tab, 2) == ["Refuse", "Green"]
+    body = shown_list(tab).locator('select[aria-label="Bin colour"]').first
+    assert body.input_value() == "purple"
+
+
+def test_edits_survive_switching_and_every_calendar_shown_is_saved(tab, core, two_calendars):
+    core.save(source="calendar", calendar=LIVERPOOL)
+    open_admin(tab)
+    shown_titles(tab, 2)
+    shown_list(tab).locator('select[aria-label="Bin colour"]').first.select_option("purple")
+    choose(tab, COTTAGE)
+    shown_titles(tab, 1)
+    shown_list(tab).locator("[data-toggle-hide]").click()
+    choose(tab, LIVERPOOL)
+    assert shown_list(tab).locator('select[aria-label="Bin colour"]').first.input_value() == (
+        "purple"
+    )
+    tab.click('button[type="submit"]')
+    tab.wait_for_load_state("networkidle")
+    saved = core.load()
+    assert saved["calendar"] == LIVERPOOL
+    liverpool = {m["match"]: m for m in saved["mappings"][LIVERPOOL]}
+    assert liverpool["Refuse"]["body_colour"] == "purple"
+    assert [(m["match"], m["hide"]) for m in saved["mappings"][COTTAGE]] == [("Garden waste", True)]
+
+
+def test_add_a_name_adds_to_the_chosen_calendar(tab, core, two_calendars):
+    core.save(source="calendar", calendar=LIVERPOOL)
+    open_admin(tab)
+    shown_titles(tab, 2)
+    choose(tab, COTTAGE)
+    shown_titles(tab, 1)
+    tab.click('[data-add-row="mappings"]')
+    added = shown_list(tab).locator("[data-row]").last
+    assert added.locator("[data-calendar-input]").input_value() == COTTAGE
+    assert added.locator("[name$=-match]").get_attribute("name") == "mappings-3-match"
+    assert added.locator("[name$=-match]").evaluate("el => el === document.activeElement")

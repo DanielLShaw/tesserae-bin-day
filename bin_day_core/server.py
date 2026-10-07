@@ -50,7 +50,7 @@ def _load_logic():
 
 logic = _load_logic()
 
-DEFAULT_CONFIG = {"source": "schedule", "calendar": "", "schedule": [], "mappings": []}
+DEFAULT_CONFIG = {"source": "schedule", "calendar": "", "schedule": [], "mappings": {}}
 DISCOVERY_DAYS = 56  # how far ahead the admin page looks for a calendar's bin titles
 # Where Tesserae puts things: Home Assistant Core's connection is on the
 # Settings page's Widgets tab; Bin Day Core's page is under the Widgets menu.
@@ -78,13 +78,23 @@ def load_config():
         raw = {}
     if not isinstance(raw, dict):
         raw = {}
-    calendar = raw.get("calendar")
+    calendar = raw.get("calendar") if isinstance(raw.get("calendar"), str) else ""
     return {
         "source": raw.get("source") if raw.get("source") in logic.config.SOURCES else "schedule",
-        "calendar": calendar if isinstance(calendar, str) else "",
+        "calendar": calendar,
         "schedule": raw.get("schedule") if isinstance(raw.get("schedule"), list) else [],
-        "mappings": raw.get("mappings") if isinstance(raw.get("mappings"), list) else [],
+        "mappings": _mappings_by_calendar(raw.get("mappings"), calendar),
     }
+
+
+def _mappings_by_calendar(mappings, calendar):
+    """``{calendar: [mapping, ...]}``. Mappings saved before each calendar
+    had its own were one list: they belong to the calendar saved with them."""
+    if isinstance(mappings, list):
+        return {calendar: mappings} if calendar else {}
+    if not isinstance(mappings, dict):
+        return {}
+    return {cal: rows for cal, rows in mappings.items() if isinstance(rows, list)}
 
 
 def _write_json(path, value):
@@ -192,7 +202,8 @@ def collections(cutoff, fresh=False, colours=None):
     if config["source"] == "calendar":
         if not config["calendar"]:
             return {"error": NEEDS_CALENDAR}
-        return _calendar_payload(config["calendar"], config["mappings"], cutoff, fresh, eink)
+        mappings = config["mappings"].get(config["calendar"], [])
+        return _calendar_payload(config["calendar"], mappings, cutoff, fresh, eink)
     if not config["schedule"]:
         return {"error": NEEDS_BINS}
     try:
@@ -253,10 +264,10 @@ def discover_titles(entity_id):
     return logic.distinct_titles(events), None
 
 
-def _mapping_views(config, titles):
+def _mapping_views(mappings, titles):
     """A row per title in the calendar, carrying its saved mapping, then the
     saved mappings for other names as editable rows."""
-    saved = {m["match"].casefold(): m for m in config["mappings"]}
+    saved = {m["match"].casefold(): m for m in mappings}
     blank = dict.fromkeys(("label", *_STYLE_CHOICES), "")
     rows = []
     for title in titles:
@@ -266,24 +277,57 @@ def _mapping_views(config, titles):
     return rows
 
 
-def _render_admin(config, errors=()):
+def _titles_status(titles, error):
+    """The line shown above a calendar's rows."""
+    if error:
+        return error
+    return "" if titles else "No bin collections in the next 8 weeks."
+
+
+def _mapping_lists(config, ha_problem, posted):
+    """``(lists, status)``: the chosen calendar's rows, with its bins read from
+    Home Assistant unless ``ha_problem``, and the line above them. After a
+    failed save (``posted``), every other calendar's posted rows too, so no
+    edit is lost."""
+    calendar, lists, status = config["calendar"], [], ""
+    if calendar:
+        titles = []
+        if config["source"] == "calendar" and not ha_problem:
+            titles, error = discover_titles(calendar)
+            status = _titles_status(titles, error)
+        rows = _mapping_views(config["mappings"].get(calendar, []), titles)
+        lists.append({"calendar": calendar, "rows": rows})
+    for other, mappings in config["mappings"].items() if posted else ():
+        if other != calendar:
+            lists.append({"calendar": other, "rows": _mapping_views(mappings, [])})
+    start = 0
+    for row_list in lists:
+        row_list["start"], start = start, start + len(row_list["rows"])
+    return lists, status
+
+
+def _style_choices():
+    return {
+        "icon_choices": ICON_CHOICES,
+        "colour_choices": COLOUR_CHOICES,
+        "max_every_weeks": logic.schedule.MAX_EVERY_WEEKS,
+    }
+
+
+def _render_admin(config, errors=(), posted=False):
     options, ha_problem = _calendar_options()
-    titles, discovery_error = [], None
-    if config["source"] == "calendar" and config["calendar"] and not ha_problem:
-        titles, discovery_error = discover_titles(config["calendar"])
+    lists, status = _mapping_lists(config, ha_problem, posted)
     return render_template(
         "bin_day_core/index.html",
         config=config,
         errors=errors,
         calendar_options=options,
         ha_problem=ha_problem,
-        discovery_error=discovery_error,
+        titles_status=status,
         schedule_rows=[_row_view(row) for row in config["schedule"]],
-        mapping_rows=_mapping_views(config, titles),
+        mapping_lists=lists,
         blank_row=_row_view(dict.fromkeys(("label", *_STYLE_CHOICES), ""), hide=False),
-        icon_choices=ICON_CHOICES,
-        colour_choices=COLOUR_CHOICES,
-        max_every_weeks=logic.schedule.MAX_EVERY_WEEKS,
+        **_style_choices(),
     )
 
 
@@ -298,14 +342,26 @@ def blueprint():
     def save():
         config, errors = logic.parse_admin_form(request.form)
         if errors:
-            return _render_admin(config, errors), 400
+            return _render_admin(config, errors, posted=True), 400
+        # Calendars the page didn't show keep their saved mappings.
+        config["mappings"] = {**load_config()["mappings"], **config["mappings"]}
         save_config(config)
         flash("Saved.", "ok")
         return redirect(url_for("bin_day_core_admin.index"))
 
-    @bp.get("/titles")
-    def titles():
-        found, error = discover_titles(request.args.get("calendar", ""))
-        return jsonify({"titles": found, **({"error": error} if error else {})})
+    @bp.get("/rows")
+    def rows():
+        """One calendar's rows, for when it is chosen on the page: its bins
+        from Home Assistant with that calendar's saved mappings. The page
+        renumbers them to follow its other rows."""
+        calendar = request.args.get("calendar", "")
+        titles, error = discover_titles(calendar)
+        row_list = {
+            "calendar": calendar,
+            "rows": _mapping_views(load_config()["mappings"].get(calendar, []), titles),
+            "start": 0,
+        }
+        html = render_template("bin_day_core/calendar_rows.html", list=row_list, **_style_choices())
+        return jsonify({"html": html.strip(), "status": _titles_status(titles, error)})
 
     return bp

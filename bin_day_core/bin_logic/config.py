@@ -6,15 +6,19 @@ Stored shape::
      "calendar": "calendar.<entity>",
      "schedule": [{label, first_date, every_weeks, icon, body_colour,
                    lid_colour, hide}],
-     "mappings": [{match, label, icon, body_colour, lid_colour, hide}]}
+     "mappings": {"calendar.<entity>": [{match, label, icon, body_colour,
+                                         lid_colour, hide}]}}
 
 Every cell shows this one source: the manual schedule's bins, or the Home
-Assistant calendar's events styled by the title mappings.
+Assistant calendar's events styled by that calendar's title mappings. Each
+calendar keeps its own mappings, so switching calendar loses nothing.
 
 The form posts ``source``, ``calendar``, and rows as ``schedule-<n>-<field>``
-and ``mappings-<n>-<field>``. A row's icon or colour may be "custom", its
-value then coming from ``<field>_custom``. ``-hide`` is set by the row's eye
-button. A removed row is simply not posted.
+and ``mappings-<n>-<field>``; a mapping row's ``calendar`` field says whose it
+is, and ``mappings_for`` names each calendar whose rows the page showed (so a
+calendar with every row removed is stored empty). A row's icon or colour may
+be "custom", its value then coming from ``<field>_custom``. ``-hide`` is set
+by the row's eye button. A removed row is simply not posted.
 """
 
 import re
@@ -28,6 +32,15 @@ CUSTOM = "custom"
 STYLE_FIELDS = ("icon", "body_colour", "lid_colour")
 BIN_FIELDS = ("label", "first_date", "every_weeks")
 MAPPING_FIELDS = ("match", "label")
+
+
+def _all(form, key):
+    """Every value posted for ``key``: a MultiDict's list, or a plain dict's
+    list or single value."""
+    if hasattr(form, "getlist"):
+        return form.getlist(key)
+    value = form.get(key)
+    return value if isinstance(value, list) else [value]
 
 
 def _indices(form, prefix):
@@ -85,11 +98,13 @@ def parse_admin_form(form):
         for position, row in enumerate(schedule, start=1):
             _check_bin(row, f"Bin {position}", errors)
 
-    mappings = []
+    mappings = {clean_text(cal): [] for cal in _all(form, "mappings_for")}
     for n in _indices(form, "mappings"):
         row = _row(form, f"mappings-{n}", MAPPING_FIELDS)
+        rows = mappings.setdefault(clean_text(form.get(f"mappings-{n}-calendar")), [])
         if row["match"]:
-            mappings.append(row)
+            rows.append(row)
+    mappings.pop("", None)
 
     config = {"source": source, "calendar": calendar, "schedule": schedule, "mappings": mappings}
     return config, errors

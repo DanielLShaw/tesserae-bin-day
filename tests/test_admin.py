@@ -6,10 +6,11 @@ from html import unescape
 from zoneinfo import ZoneInfo
 
 import pytest
+from werkzeug.datastructures import MultiDict
 
 INDEX = "/plugins/bin_day_core/"
 SAVE = "/plugins/bin_day_core/save"
-TITLES = "/plugins/bin_day_core/titles"
+ROWS = "/plugins/bin_day_core/rows"
 TUE_8AM = datetime(2026, 10, 6, 8, 0, tzinfo=ZoneInfo("Europe/London"))
 LIVERPOOL = "calendar.liverpool_city_council"
 
@@ -57,7 +58,7 @@ def stored(app, core):
         with app.app_context():
             if config:
                 core.save_config(
-                    {"source": "schedule", "calendar": "", "schedule": [], "mappings": [], **config}
+                    {"source": "schedule", "calendar": "", "schedule": [], "mappings": {}, **config}
                 )
             return core.load_config()
 
@@ -172,6 +173,12 @@ class TestSource:
         assert '<a href="/settings/plugins#plugin-ha_core">' in html
         assert "Settings, Widgets, Home Assistant Core" in html
 
+    def test_a_home_assistant_problem_is_said_once(self, client, stored):
+        stored(source="calendar", calendar=LIVERPOOL)
+        html = page(client)
+        assert "Connect Home Assistant Core first" in html
+        assert '<p class="field-help bd-note" data-titles-status aria-live="polite"></p>' in html
+
 
 class TestSchedule:
     def test_saved_bins_are_shown_as_rows(self, client, stored):
@@ -203,12 +210,26 @@ class TestSchedule:
         assert 'name="schedule-__N__-label"' in html
 
 
+COTTAGE = "calendar.cottage"
+
+
+def rows_for(client, calendar):
+    return client.get(f"{ROWS}?calendar={calendar}").get_json()
+
+
 class TestCalendarBins:
     def test_each_title_in_the_calendar_gets_a_row_once(self, client, stored, liverpool):
         stored(source="calendar", calendar=LIVERPOOL)
         html = page(client)
         titles = re.findall(r'name="mappings-\d+-match" value="([^"]*)"', html)
         assert titles == ["Refuse", "Green", "Recycling"]
+
+    def test_the_rows_belong_to_the_chosen_calendar(self, client, stored, liverpool):
+        stored(source="calendar", calendar=LIVERPOOL)
+        html = page(client)
+        assert f'<div class="bd-calendar-rows" data-calendar-rows="{LIVERPOOL}">' in html
+        assert value(html, "mappings_for") == LIVERPOOL
+        assert [value(html, f"mappings-{n}-calendar") for n in range(3)] == [LIVERPOOL] * 3
 
     def test_the_calendars_own_names_are_fixed_and_cannot_be_removed(
         self, client, stored, liverpool
@@ -221,7 +242,11 @@ class TestCalendarBins:
             assert "data-remove-row" not in row
 
     def test_saved_mappings_fill_in_their_titles_row(self, client, stored, liverpool):
-        stored(source="calendar", calendar=LIVERPOOL, mappings=[mapping("Green", icon="leaf")])
+        stored(
+            source="calendar",
+            calendar=LIVERPOOL,
+            mappings={LIVERPOOL: [mapping("Green", icon="leaf")]},
+        )
         html = page(client)
         row = re.findall(r'name="mappings-(\d+)-match" value="Green"', html)[0]
         assert selected(html, f"mappings-{row}-icon") == "leaf"
@@ -229,12 +254,28 @@ class TestCalendarBins:
     def test_a_saved_mapping_for_another_title_stays_as_an_editable_row(
         self, client, stored, liverpool
     ):
-        stored(source="calendar", calendar=LIVERPOOL, mappings=[mapping("Bulky")])
+        stored(source="calendar", calendar=LIVERPOOL, mappings={LIVERPOOL: [mapping("Bulky")]})
         html = page(client)
         assert re.search(r'<input type="text"[^>]*name="mappings-\d+-match" value="Bulky"', html)
 
+    def test_another_calendars_mappings_are_not_shown(self, client, stored, liverpool):
+        stored(source="calendar", calendar=LIVERPOOL, mappings={COTTAGE: [mapping("Bulky")]})
+        html = page(client)
+        assert 'value="Bulky"' not in html
+        assert COTTAGE not in html.split("data-calendar-lists", 1)[1]
+
+    def test_with_no_calendar_chosen_there_are_no_bins_to_show(self, client, stored, liverpool):
+        stored(source="calendar")
+        html = page(client)
+        assert re.search(r"<div data-calendar-bins hidden>", html)
+        assert mapping_rows(html) == []
+
     def test_unreachable_ha_says_so_and_keeps_saved_mappings(self, client, stored, liverpool):
-        stored(source="calendar", calendar=LIVERPOOL, mappings=[mapping("Green", icon="leaf")])
+        stored(
+            source="calendar",
+            calendar=LIVERPOOL,
+            mappings={LIVERPOOL: [mapping("Green", icon="leaf")]},
+        )
         liverpool.stop()
         html = page(client)
         assert "can't be reached" in html
@@ -245,20 +286,45 @@ class TestCalendarBins:
         liverpool.fail_with = 500
         assert f"Couldn't read {LIVERPOOL}" in unescape(page(client))
 
-    def test_titles_endpoint_lists_a_calendars_titles(self, client, core, liverpool):
-        assert client.get(f"{TITLES}?calendar={LIVERPOOL}").get_json() == {
-            "titles": ["Refuse", "Green", "Recycling"]
-        }
+
+class TestRowsEndpoint:
+    """Choosing another calendar on the page fetches its rows from here. The
+    page numbers them to follow its other rows."""
+
+    def test_a_calendars_rows_come_with_its_own_saved_mappings(self, client, stored, liverpool):
+        liverpool.add_calendar(COTTAGE, "Cottage", [wcs_event("Garden waste", "2026-10-09")])
+        stored(
+            calendar=LIVERPOOL,
+            mappings={
+                LIVERPOOL: [mapping("Bulky")],
+                COTTAGE: [mapping("Garden waste", icon="flower")],
+            },
+        )
+        data = rows_for(client, COTTAGE)
+        html = data["html"]
+        assert html.startswith(f'<div class="bd-calendar-rows" data-calendar-rows="{COTTAGE}">')
+        assert value(html, "mappings_for") == COTTAGE
+        assert value(html, "mappings-0-match") == "Garden waste"
+        assert value(html, "mappings-0-calendar") == COTTAGE
+        assert selected(html, "mappings-0-icon") == "custom"
+        assert value(html, "mappings-0-icon_custom") == "flower"
+        assert "Bulky" not in html
+        assert data["status"] == ""
 
     def test_titles_are_looked_for_8_weeks_ahead(self, client, core, liverpool):
-        client.get(f"{TITLES}?calendar={LIVERPOOL}")
+        rows_for(client, LIVERPOOL)
         [(_, query, _)] = liverpool.requests
         assert query == {"start": ["2026-10-05T23:00:00Z"], "end": ["2026-12-01T00:00:00Z"]}
 
-    def test_titles_endpoint_reports_a_failure(self, client, core):
-        data = client.get(f"{TITLES}?calendar={LIVERPOOL}").get_json()
-        assert data["titles"] == []
-        assert "Home Assistant Core" in data["error"]
+    def test_a_calendar_with_no_collections_says_so(self, client, core, liverpool):
+        liverpool.add_calendar(COTTAGE, "Cottage", [])
+        assert rows_for(client, COTTAGE)["status"] == "No bin collections in the next 8 weeks."
+
+    def test_a_failure_is_reported_and_saved_mappings_still_come(self, client, stored):
+        stored(mappings={LIVERPOOL: [mapping("Green", icon="leaf")]})
+        data = rows_for(client, LIVERPOOL)
+        assert "Home Assistant Core" in data["status"]
+        assert value(data["html"], "mappings-0-match") == "Green"
 
 
 class TestSaving:
@@ -297,3 +363,75 @@ class TestSaving:
         assert "Bin 1: must repeat every 1 to 8 weeks" in html
         assert value(html, "schedule-0-every_weeks") == "12"
         assert stored()["schedule"] == [bin_("Refuse")]
+
+    def test_saving_keeps_the_mappings_of_calendars_not_on_the_page(self, client, stored):
+        stored(mappings={COTTAGE: [mapping("Garden waste", hide=True)]})
+        form = {
+            "source": "calendar",
+            "calendar": LIVERPOOL,
+            "mappings_for": LIVERPOOL,
+            "mappings-0-calendar": LIVERPOOL,
+            "mappings-0-match": "Green",
+            "mappings-0-icon": "leaf",
+        }
+        assert client.post(SAVE, data=form).status_code == 302
+        mappings = stored()["mappings"]
+        assert mappings[COTTAGE] == [mapping("Garden waste", hide=True)]
+        assert [(m["match"], m["icon"]) for m in mappings[LIVERPOOL]] == [("Green", "leaf")]
+
+    def test_saving_two_calendars_from_the_page_stores_both(self, client, stored):
+        form = MultiDict(
+            [
+                ("source", "calendar"),
+                ("calendar", LIVERPOOL),
+                ("mappings_for", LIVERPOOL),
+                ("mappings_for", COTTAGE),
+                ("mappings-0-calendar", LIVERPOOL),
+                ("mappings-0-match", "Green"),
+                ("mappings-1-calendar", COTTAGE),
+                ("mappings-1-match", "Garden waste"),
+                ("mappings-1-hide", "on"),
+            ]
+        )
+        client.post(SAVE, data=form)
+        mappings = stored()["mappings"]
+        assert [m["match"] for m in mappings[LIVERPOOL]] == ["Green"]
+        assert [(m["match"], m["hide"]) for m in mappings[COTTAGE]] == [("Garden waste", True)]
+
+    def test_an_invalid_save_shows_the_chosen_calendars_rows_once(self, client, stored):
+        form = MultiDict(
+            [
+                ("source", "schedule"),
+                ("calendar", LIVERPOOL),
+                ("schedule-0-label", "Refuse"),
+                ("mappings_for", LIVERPOOL),
+                ("mappings_for", COTTAGE),
+                ("mappings-0-calendar", LIVERPOOL),
+                ("mappings-0-match", "Bulky"),
+            ]
+        )
+        html = client.post(SAVE, data=form).get_data(as_text=True)
+        assert html.count(f'data-calendar-rows="{LIVERPOOL}">') == 1
+        assert html.count(f'data-calendar-rows="{COTTAGE}" hidden>') == 1
+        assert html.count('value="Bulky"') == 1
+
+    def test_an_invalid_save_keeps_every_calendars_rows_on_the_page(
+        self, client, stored, liverpool
+    ):
+        form = MultiDict(
+            [
+                ("source", "calendar"),
+                ("calendar", ""),
+                ("mappings_for", LIVERPOOL),
+                ("mappings_for", COTTAGE),
+                ("mappings-0-calendar", LIVERPOOL),
+                ("mappings-0-match", "Bulky"),
+                ("mappings-1-calendar", COTTAGE),
+                ("mappings-1-match", "Garden waste"),
+            ]
+        )
+        html = client.post(SAVE, data=form).get_data(as_text=True)
+        assert "Choose your Home Assistant bin calendar." in html
+        for calendar, match in ((LIVERPOOL, "Bulky"), (COTTAGE, "Garden waste")):
+            block = re.search(rf'data-calendar-rows="{calendar}" hidden>.*?</ul>', html, re.S)[0]
+            assert f'value="{match}"' in block

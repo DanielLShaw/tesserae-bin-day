@@ -52,7 +52,7 @@ def test_config_that_is_not_an_object_reads_as_empty(app, registry, content):
             "source": "schedule",
             "calendar": "",
             "schedule": [],
-            "mappings": [],
+            "mappings": {},
         }
 
 
@@ -61,7 +61,10 @@ def test_saved_config_round_trips(app, registry):
         "source": "calendar",
         "calendar": "calendar.bins",
         "schedule": [],
-        "mappings": [{"match": "Green", "icon": "leaf"}],
+        "mappings": {
+            "calendar.bins": [{"match": "Green", "icon": "leaf"}],
+            "calendar.cottage": [],
+        },
     }
     with app.app_context():
         core_module(registry).save_config(config)
@@ -91,5 +94,31 @@ def test_an_unknown_source_or_odd_fields_read_as_defaults(app, registry):
             "source": "schedule",
             "calendar": "",
             "schedule": [],
-            "mappings": [],
+            "mappings": {},
         }
+
+
+def test_a_calendars_mappings_that_are_not_a_list_are_dropped(app, registry):
+    (registry.get("bin_day_core").data_dir / "config.json").write_text(
+        '{"mappings": {"calendar.bins": [{"match": "Green"}], "calendar.odd": "x"}}'
+    )
+    with app.app_context():
+        mappings = core_module(registry).load_config()["mappings"]
+    assert mappings == {"calendar.bins": [{"match": "Green"}]}
+
+
+def test_mappings_saved_before_they_were_per_calendar_go_to_the_saved_calendar(app, registry):
+    (registry.get("bin_day_core").data_dir / "config.json").write_text(
+        '{"source": "calendar", "calendar": "calendar.bins", "mappings": [{"match": "Green"}]}'
+    )
+    with app.app_context():
+        mappings = core_module(registry).load_config()["mappings"]
+    assert mappings == {"calendar.bins": [{"match": "Green"}]}
+
+
+def test_mappings_saved_before_they_were_per_calendar_with_no_calendar_are_dropped(app, registry):
+    (registry.get("bin_day_core").data_dir / "config.json").write_text(
+        '{"mappings": [{"match": "Green"}]}'
+    )
+    with app.app_context():
+        assert core_module(registry).load_config()["mappings"] == {}

@@ -7,80 +7,7 @@
 <script src="/plugins/bin_day_core/static/admin.js" defer></script>
 {% endblock %}
 
-{# One icon or colour control: a dropdown with "Custom…", revealing a field. #}
-{% macro style_field(prefix, row, field, label, options, kind) -%}
-{% set choice = row[field ~ '_choice'] %}
-{% set custom = row[field ~ '_custom'] %}
-<div class="field bd-style" data-custom-field>
-  <select name="{{ prefix }}-{{ field }}" aria-label="{{ label }}" data-custom-select>
-    {%- for option_value, option_label in options %}
-    <option value="{{ option_value }}"{% if option_value == choice %} selected{% endif %}>{{ option_label }}</option>
-    {%- endfor %}
-    <option value="custom"{% if choice == 'custom' %} selected{% endif %}>Custom…</option>
-  </select>
-  <div class="bd-custom"{% if choice != 'custom' %} hidden{% endif %}>
-    {%- if kind == 'icon' %}
-    <input type="text" name="{{ prefix }}-{{ field }}_custom" value="{{ custom }}" placeholder="armchair"
-           aria-label="{{ label }} name" autocomplete="off" spellcheck="false" data-icon-input>
-    <i class="ph-bold ph-{{ custom or 'question' }} bd-icon-preview" aria-hidden="true"></i>
-    {%- else %}
-    <input type="color" value="{{ custom if custom|length == 7 else '#808080' }}" aria-label="{{ label }} picker" data-colour-picker>
-    <input type="text" name="{{ prefix }}-{{ field }}_custom" value="{{ custom }}" placeholder="#7a3e9d"
-           pattern="#[0-9a-fA-F]{6}" aria-label="{{ label }} hex code" autocomplete="off" spellcheck="false" data-colour-hex>
-    {%- endif %}
-  </div>
-</div>
-{%- endmacro %}
-
-{% macro style_cells(prefix, row) -%}
-{{ style_field(prefix, row, 'icon', 'Icon', icon_choices, 'icon') }}
-{{ style_field(prefix, row, 'body_colour', 'Bin colour', colour_choices, 'colour') }}
-{{ style_field(prefix, row, 'lid_colour', 'Lid colour', colour_choices, 'colour') }}
-{%- endmacro %}
-
-{# The eye toggle and, where a row can go, the remove button. #}
-{% macro row_actions(prefix, row, removable=True) -%}
-<div class="bd-actions">
-  <input type="hidden" name="{{ prefix }}-hide" value="{{ 'on' if row.hide else '' }}" data-hide-input>
-  <button type="button" class="ghost bd-icon-btn" data-toggle-hide aria-pressed="{{ 'true' if row.hide else 'false' }}"
-          title="Show or hide this collection on the widget" aria-label="Show or hide">
-    <i class="ph ph-{{ 'eye-slash' if row.hide else 'eye' }}" aria-hidden="true"></i>
-  </button>
-  {%- if removable %}
-  <button type="button" class="ghost danger bd-icon-btn" data-remove-row title="Remove" aria-label="Remove">
-    <i class="ph ph-x" aria-hidden="true"></i>
-  </button>
-  {%- else %}
-  <span class="bd-icon-spacer" aria-hidden="true"></span>
-  {%- endif %}
-</div>
-{%- endmacro %}
-
-{% macro bin_row(prefix, row) -%}
-<li class="bd-row bd-bin{% if row.hide %} is-disabled{% endif %}" data-row>
-  <div class="field"><input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="Refuse" aria-label="Bin name"></div>
-  <div class="field"><input type="date" name="{{ prefix }}-first_date" value="{{ row.first_date }}" aria-label="First collection"></div>
-  <div class="field"><input type="number" name="{{ prefix }}-every_weeks" value="{{ row.every_weeks }}" min="1" max="{{ max_every_weeks }}" step="1" placeholder="1" aria-label="Every (weeks)"></div>
-  {{ style_cells(prefix, row) }}
-  {{ row_actions(prefix, row) }}
-</li>
-{%- endmacro %}
-
-{% macro mapping_row(prefix, row) -%}
-<li class="bd-row bd-mapping{% if row.hide %} is-disabled{% endif %}" data-row>
-  {%- if row.discovered %}
-  <div class="bd-title">
-    <input type="hidden" name="{{ prefix }}-match" value="{{ row.match }}" data-title-input>
-    <span data-title-text>{{ row.match }}</span>
-  </div>
-  {%- else %}
-  <div class="field"><input type="text" name="{{ prefix }}-match" value="{{ row.match }}" placeholder="Name contains…" aria-label="Name contains"></div>
-  {%- endif %}
-  <div class="field"><input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="(as is)" aria-label="Show as"></div>
-  {{ style_cells(prefix, row) }}
-  {{ row_actions(prefix, row, removable=not row.discovered) }}
-</li>
-{%- endmacro %}
+{% from "bin_day_core/_rows.html" import bin_row, mapping_row, calendar_rows with context %}
 
 {% block main %}
 <div class="page-head">
@@ -143,27 +70,27 @@
         adds one to Home Assistant for hundreds of councils and waste companies.</p>
     </div>
 
-    <h3 class="bd-sub">Bins in this calendar</h3>
-    <p class="field-help">Each bin name in the calendar's next 8 weeks gets a row. Leave icon and
-      colours on Automatic to work them out from the name, or set them here. Liverpool's
-      "Green", for example, needs the Garden icon. The eye hides a bin you don't have.
-      Add a row to style names that haven't turned up yet; it matches the whole name, or whole
-      words within one.
-      <a href="https://phosphoricons.com" target="_blank" rel="noreferrer">Browse icon names</a>.</p>
-    {% if discovery_error %}
-    <p class="field-help bd-note" data-titles-status><i class="ph ph-warning-circle" aria-hidden="true"></i> {{ discovery_error }}</p>
-    {% else %}
-    <p class="field-help bd-note" data-titles-status aria-live="polite"></p>
-    {% endif %}
-    <div class="bd-scroll">
-      <div class="bd-head bd-mapping" aria-hidden="true">
-        <span>Bin name</span><span>Show as</span><span>Icon</span><span>Bin colour</span><span>Lid colour</span><span></span>
+    <div data-calendar-bins{% if not config.calendar %} hidden{% endif %}>
+      <h3 class="bd-sub">Bins in this calendar</h3>
+      <p class="field-help">Each bin name in the calendar's next 8 weeks gets a row. Leave icon and
+        colours on Automatic to work them out from the name, or set them here. Liverpool's
+        "Green", for example, needs the Garden icon. The eye hides a bin you don't have.
+        Add a row to style names that haven't turned up yet; it matches the whole name, or whole
+        words within one. Each calendar keeps its own settings.
+        <a href="https://phosphoricons.com" target="_blank" rel="noreferrer">Browse icon names</a>.</p>
+      <p class="field-help bd-note" data-titles-status aria-live="polite">{{ titles_status }}</p>
+      <div class="bd-scroll">
+        <div class="bd-head bd-mapping" aria-hidden="true">
+          <span>Bin name</span><span>Show as</span><span>Icon</span><span>Bin colour</span><span>Lid colour</span><span></span>
+        </div>
+        <div data-calendar-lists>
+          {%- for list in mapping_lists %}
+          {{ calendar_rows(list.calendar, list.rows, list.start, list.calendar != config.calendar) }}
+          {%- endfor %}
+        </div>
       </div>
-      <ul class="bd-list" data-rows="mappings">
-        {% for row in mapping_rows %}{{ mapping_row('mappings-' ~ loop.index0, row) }}{% endfor %}
-      </ul>
+      <button type="button" class="bd-add" data-add-row="mappings"><i class="ph ph-plus" aria-hidden="true"></i><span>Add a name</span></button>
     </div>
-    <button type="button" class="bd-add" data-add-row="mappings"><i class="ph ph-plus" aria-hidden="true"></i><span>Add a name</span></button>
   </section>
 
   <section class="card" data-show-for="schedule"{% if config.source != 'schedule' %} hidden{% endif %}>
@@ -188,7 +115,6 @@
   </div>
 
   <template data-row-template="schedule">{{ bin_row('schedule-__N__', blank_row) }}</template>
-  <template data-row-template="mappings">{{ mapping_row('mappings-__N__', dict(blank_row, match='', discovered=False)) }}</template>
-  <template data-row-template="title">{{ mapping_row('mappings-__N__', dict(blank_row, match='', discovered=True)) }}</template>
+  <template data-row-template="mappings">{{ mapping_row('mappings-__N__', dict(blank_row, match='', discovered=False), '') }}</template>
 </form>
 {% endblock %}

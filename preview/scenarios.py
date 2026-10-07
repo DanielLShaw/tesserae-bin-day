@@ -71,7 +71,7 @@ class Scenario:
 
     @property
     def config(self):
-        return {"source": self.source, "calendar": "", "schedule": self.streams, "mappings": []}
+        return {"source": self.source, "calendar": "", "schedule": self.streams, "mappings": {}}
 
     @property
     def options(self):

@@ -35,7 +35,7 @@ def save(app, core):
     def _save(**config):
         with app.app_context():
             core.save_config(
-                {"source": "schedule", "calendar": "", "schedule": [], "mappings": [], **config}
+                {"source": "schedule", "calendar": "", "schedule": [], "mappings": {}, **config}
             )
 
     return _save

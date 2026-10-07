@@ -19,8 +19,12 @@ def bin_row(n, label="", first_date="", every_weeks="", **extra):
     return fields
 
 
-def mapping_row(n, match, **extra):
+CAL = "calendar.bins"
+
+
+def mapping_row(n, match, calendar=CAL, **extra):
     fields = {
+        f"mappings-{n}-calendar": calendar,
         f"mappings-{n}-match": match,
         f"mappings-{n}-label": "",
         f"mappings-{n}-icon": "",
@@ -34,7 +38,7 @@ def mapping_row(n, match, **extra):
 
 def test_empty_form_is_an_empty_manual_schedule():
     assert parse_admin_form({}) == (
-        {"source": "schedule", "calendar": "", "schedule": [], "mappings": []},
+        {"source": "schedule", "calendar": "", "schedule": [], "mappings": {}},
         [],
     )
 
@@ -138,26 +142,58 @@ class TestSchedule:
         assert config["schedule"][0]["label"] == "Refuse"
 
 
+def mappings_of(form):
+    return parse_admin_form(form)[0]["mappings"]
+
+
 class TestMappings:
-    def test_mapping_rows_are_stored_with_trimmed_fields(self):
-        form = mapping_row(0, " Green ", icon="leaf", lid_colour="black")
-        assert parse_admin_form(form)[0]["mappings"] == [
-            {
-                "match": "Green",
-                "label": "",
-                "icon": "leaf",
-                "body_colour": "",
-                "lid_colour": "black",
-                "hide": False,
-            }
-        ]
+    """Each calendar keeps its own bin settings. The page posts a list per
+    calendar it showed (``mappings_for``), and each row says its calendar."""
+
+    def test_rows_are_stored_under_their_calendar_with_trimmed_fields(self):
+        form = {"mappings_for": [CAL], **mapping_row(0, " Green ", icon="leaf", lid_colour="black")}
+        assert mappings_of(form) == {
+            CAL: [
+                {
+                    "match": "Green",
+                    "label": "",
+                    "icon": "leaf",
+                    "body_colour": "",
+                    "lid_colour": "black",
+                    "hide": False,
+                }
+            ]
+        }
+
+    def test_each_calendars_rows_are_kept_apart(self):
+        form = {
+            "mappings_for": [CAL, "calendar.cottage"],
+            **mapping_row(0, "Green"),
+            **mapping_row(1, "Garden", calendar="calendar.cottage"),
+            **mapping_row(2, "Refuse"),
+        }
+        assert {cal: [m["match"] for m in rows] for cal, rows in mappings_of(form).items()} == {
+            CAL: ["Green", "Refuse"],
+            "calendar.cottage": ["Garden"],
+        }
+
+    def test_a_calendar_shown_with_every_row_removed_is_stored_empty(self):
+        assert mappings_of({"mappings_for": [CAL]}) == {CAL: []}
+
+    def test_one_calendar_may_be_posted_as_a_single_value(self):
+        assert mappings_of({"mappings_for": CAL}) == {CAL: []}
+
+    def test_rows_and_lists_without_a_calendar_are_dropped(self):
+        form = {"mappings_for": [""], **mapping_row(0, "Green", calendar=" ")}
+        assert mappings_of(form) == {}
 
     def test_rows_without_match_text_are_dropped(self):
-        assert parse_admin_form(mapping_row(0, "  ", label="Ignored"))[0]["mappings"] == []
+        form = {"mappings_for": [CAL], **mapping_row(0, "  ", label="Ignored")}
+        assert mappings_of(form) == {CAL: []}
 
     def test_the_eye_button_hides_a_collection(self):
-        form = mapping_row(0, "Green", hide="on")
-        assert parse_admin_form(form)[0]["mappings"][0]["hide"] is True
+        form = {"mappings_for": [CAL], **mapping_row(0, "Green", hide="on")}
+        assert mappings_of(form)[CAL][0]["hide"] is True
 
 
 class TestCustomValues:
@@ -168,7 +204,8 @@ class TestCustomValues:
             if kind == "schedule"
             else mapping_row(0, "Bulky", icon="custom", icon_custom=" armchair ")
         )
-        assert parse_admin_form(row)[0][kind][0]["icon"] == "armchair"
+        rows = parse_admin_form(row)[0][kind]
+        assert (rows[CAL] if kind == "mappings" else rows)[0]["icon"] == "armchair"
 
     def test_custom_colours_take_the_typed_hex(self):
         form = mapping_row(
@@ -179,9 +216,9 @@ class TestCustomValues:
             lid_colour="custom",
             lid_colour_custom="#000000",
         )
-        mapping = parse_admin_form(form)[0]["mappings"][0]
+        mapping = mappings_of(form)[CAL][0]
         assert (mapping["body_colour"], mapping["lid_colour"]) == ("#7A3E9D", "#000000")
 
     def test_custom_left_blank_means_automatic(self):
         form = mapping_row(0, "Bulky", icon="custom", icon_custom="")
-        assert parse_admin_form(form)[0]["mappings"][0]["icon"] == ""
+        assert mappings_of(form)[CAL][0]["icon"] == ""

@@ -1,6 +1,10 @@
 // Bin Day Core admin page: switch source, add / remove / hide rows, reveal
-// the custom icon and colour fields, and list a chosen calendar's bins.
+// the custom icon and colour fields, and show the chosen calendar's bins.
 // Listeners sit on the form, so rows added later behave like the rest.
+//
+// Each calendar has its own list of rows. Only the chosen one shows; the
+// others stay in the form, hidden, so their edits survive switching and are
+// saved too. A calendar's list is fetched the first time it is chosen.
 
 (() => {
   const form = document.querySelector("[data-bd-form]");
@@ -23,22 +27,77 @@
     return highest + 1;
   };
 
-  // A row from its <template>; ``title`` fills a calendar bin's name.
-  const addRow = (kind, title) => {
-    const template = form.querySelector(
-      `template[data-row-template="${title === undefined ? kind : "title"}"]`,
+  const calendarSelect = form.querySelector("[data-calendar-select]");
+  const calendarLists = form.querySelector("[data-calendar-lists]");
+  const titlesStatus = form.querySelector("[data-titles-status]");
+  const addName = form.querySelector('[data-add-row="mappings"]');
+  const statuses = new Map([[calendarSelect.value, titlesStatus.textContent]]);
+  const fetching = new Set();
+
+  const listFor = (calendar) =>
+    [...calendarLists.querySelectorAll("[data-calendar-rows]")].find(
+      (list) => list.dataset.calendarRows === calendar,
     );
+
+  // A row from its <template>; a mapping row joins the chosen calendar's list.
+  const addRow = (kind) => {
+    const template = form.querySelector(`template[data-row-template="${kind}"]`);
     const row = template.content.firstElementChild.cloneNode(true);
     const index = nextIndex(kind);
     for (const field of row.querySelectorAll("[name]")) {
       field.name = field.name.replace("__N__", index);
     }
-    if (title !== undefined) {
-      row.querySelector("[data-title-input]").value = title;
-      row.querySelector("[data-title-text]").textContent = title;
+    let rows = form.querySelector(`[data-rows="${kind}"]`);
+    if (kind === "mappings") {
+      row.querySelector("[data-calendar-input]").value = calendarSelect.value;
+      rows = listFor(calendarSelect.value).querySelector('[data-rows="mappings"]');
     }
-    form.querySelector(`[data-rows="${kind}"]`).append(row);
+    rows.append(row);
     return row;
+  };
+
+  // Number a fetched list's rows after every row already in the form.
+  const renumber = (list) => {
+    let index = nextIndex("mappings");
+    for (const row of list.querySelectorAll("[data-row]")) {
+      for (const field of row.querySelectorAll("[name]")) {
+        field.name = field.name.replace(/^mappings-\d+-/, `mappings-${index}-`);
+      }
+      index += 1;
+    }
+  };
+
+  const showCalendar = (calendar) => {
+    form.querySelector("[data-calendar-bins]").hidden = !calendar;
+    for (const list of calendarLists.querySelectorAll("[data-calendar-rows]")) {
+      list.hidden = list.dataset.calendarRows !== calendar;
+    }
+    titlesStatus.textContent = statuses.get(calendar) ?? "";
+    addName.disabled = !listFor(calendar);
+  };
+
+  // Show a calendar's rows, fetching them the first time it is chosen. The
+  // choice may move on while they load, so show whatever is chosen after.
+  const chooseCalendar = async (calendar) => {
+    showCalendar(calendar);
+    if (!calendar || listFor(calendar) || fetching.has(calendar)) return;
+    fetching.add(calendar);
+    statuses.set(calendar, "Reading the calendar…");
+    showCalendar(calendar);
+    try {
+      const response = await fetch(`rows?calendar=${encodeURIComponent(calendar)}`);
+      const data = await response.json();
+      const holder = document.createElement("template");
+      holder.innerHTML = data.html;
+      const list = holder.content.firstElementChild;
+      renumber(list);
+      calendarLists.append(list);
+      statuses.set(calendar, data.status);
+    } catch {
+      statuses.set(calendar, "Couldn't read the calendar.");
+    }
+    fetching.delete(calendar);
+    showCalendar(calendarSelect.value);
   };
 
   const toggleHide = (button) => {
@@ -51,32 +110,10 @@
     button.querySelector("i").className = `ph ph-${hidden ? "eye-slash" : "eye"}`;
   };
 
-  const loadTitles = async (calendar) => {
-    const status = form.querySelector("[data-titles-status]");
-    if (!calendar) return;
-    status.textContent = "Reading the calendar…";
-    try {
-      const response = await fetch(`titles?calendar=${encodeURIComponent(calendar)}`);
-      const data = await response.json();
-      const listed = new Set(
-        [...form.querySelectorAll('[data-rows="mappings"] [name$="-match"]')].map((field) =>
-          field.value.trim().toLowerCase(),
-        ),
-      );
-      for (const title of data.titles) {
-        if (!listed.has(title.toLowerCase())) addRow("mappings", title);
-      }
-      status.textContent =
-        data.error || (data.titles.length ? "" : "No bin collections in the next 8 weeks.");
-    } catch {
-      status.textContent = "Couldn't read the calendar.";
-    }
-  };
-
   form.addEventListener("change", (event) => {
     const target = event.target;
     if (target.matches("[data-source-radio]")) showSource(target.value);
-    if (target.matches("[data-calendar-select]")) loadTitles(target.value);
+    if (target.matches("[data-calendar-select]")) chooseCalendar(target.value);
     if (target.matches("[data-custom-select]")) {
       const custom = target.closest("[data-custom-field]").querySelector(".bd-custom");
       custom.hidden = target.value !== "custom";

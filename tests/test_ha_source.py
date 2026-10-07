@@ -49,16 +49,17 @@ def clock(registry, monkeypatch):
 
 @pytest.fixture
 def use_calendar(app, registry):
-    """Point Bin Day Core at a calendar, with optional title mappings."""
+    """Point Bin Day Core at a calendar, with its title mappings and any
+    other calendars' (``{entity_id: [mapping, ...]}``)."""
 
-    def _use(entity_id, mappings=(GREEN_MAPPING,)):
+    def _use(entity_id, mappings=(GREEN_MAPPING,), others=None):
         with app.app_context():
             registry.get("bin_day_core").server_module.save_config(
                 {
                     "source": "calendar",
                     "calendar": entity_id,
                     "schedule": [],
-                    "mappings": list(mappings),
+                    "mappings": {**(others or {}), entity_id: list(mappings)},
                 }
             )
 
@@ -127,6 +128,14 @@ class TestFetch:
     def test_a_response_that_is_not_an_event_list_is_a_load_error(self, client, liverpool):
         liverpool.calendars[LIVERPOOL] = {"message": "surprise"}
         assert "Couldn't load" in cell_data(client)["error"]
+
+    def test_only_the_chosen_calendars_mappings_apply(self, client, liverpool, use_calendar):
+        cottage = {"calendar.cottage": [{**GREEN_MAPPING, "label": "Garden", "hide": True}]}
+        use_calendar(LIVERPOOL, mappings=[], others=cottage)
+        assert shown(cell_data(client)) == [
+            ("2026-10-07", ["Refuse", "Green"]),
+            ("2026-10-12", ["Recycling"]),
+        ]
 
     def test_a_hidden_collection_never_reaches_the_cell(self, client, liverpool, use_calendar):
         use_calendar(LIVERPOOL, mappings=[{**GREEN_MAPPING, "hide": True}])

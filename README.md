@@ -79,7 +79,8 @@ where your bins come from, then save.
 3. Each bin in the calendar's next 8 weeks gets a row. Leave its icon and
    colours on Automatic, or set them. The eye button hides a bin from the
    widget. **Add a name** sets up a bin that hasn't appeared in the calendar
-   yet.
+   yet. Each calendar keeps its own settings, so switching calendar loses
+   nothing.
 
 Bin Day checks the calendar at most once an hour. If Home Assistant can't be
 reached, it keeps showing the last bins it had, for up to a day.

@@ -1,0 +1,3 @@
+{#- One calendar's rows, fetched when it is chosen on the admin page. -#}
+{%- from "bin_day_core/_rows.html" import calendar_rows with context -%}
+{{ calendar_rows(list.calendar, list.rows, list.start, False) }}

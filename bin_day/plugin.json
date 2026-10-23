@@ -192,5 +192,8 @@
   },
   "design": {
     "palette": "extended"
-  }
+  },
+  "locales": [
+    "en"
+  ]
 }

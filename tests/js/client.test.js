@@ -1,5 +1,6 @@
 // bin_day/client.js: labels, chip overflow and the XS / SM / empty / error layouts.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 
 import render, {
@@ -46,7 +47,7 @@ const count = (html, needle) => html.split(needle).length - 1;
 
 describe("day labels", () => {
   test("0 is Today, 1 is Tomorrow, otherwise N days", () => {
-    assert.deepEqual([0, 1, 2, 7].map(dayLabel), ["Today", "Tomorrow", "2 days", "7 days"]);
+    assert.deepEqual([0, 1, 2, 7].map((n) => dayLabel(n)), ["Today", "Tomorrow", "2 days", "7 days"]);
   });
 
   test("XS shows a number and unit, or Today", () => {
@@ -553,5 +554,54 @@ describe("small cells with wheelie bins", () => {
     const html = drawBins("xs", { days: [{ ...MONDAY, streams: [{ ...RECYCLING, mono_fill: "dotted" }] }] });
     assert.ok(html.includes("--body:#1f4fd1"));
     assert.ok(html.includes('data-mono="dotted"'));
+  });
+});
+
+describe("translatable text", () => {
+  const EN = new URL("../../bin_day/strings/en.json", import.meta.url);
+  const drawWith = (t, size, data, options = {}) => {
+    const shadow = { innerHTML: "" };
+    render(shadow, { cell: { size, options }, data, locale: "en", t });
+    return shadow.innerHTML;
+  };
+  const busy = { ...TOMORROW, streams: bins(5) };
+
+  test("every word the widget draws comes from strings/en.json, with the same English", () => {
+    const asked = new Map();
+    const t = (key, fallback) => {
+      asked.set(key, fallback);
+      return fallback;
+    };
+    for (const size of ["xs", "sm", "md", "lg"]) drawWith(t, size, { days: [TOMORROW, MONDAY, LATER] });
+    drawWith(t, "xs", { days: [MONDAY] });
+    drawWith(t, "sm", { days: [{ ...TOMORROW, days_until: 0 }] });
+    drawWith(t, "xs", { days: [{ ...TOMORROW, days_until: 0 }] });
+    drawWith(t, "sm", { days: [busy] });
+    drawWith(t, "xs", { days: [TOMORROW] }, { small_cells: "bins" });
+    drawWith(t, "sm", { days: [] });
+    drawWith(t, "sm", null);
+    drawWith(t, "sm", { error: "Calendar not found" });
+    assert.deepEqual(
+      [...asked.keys()].sort(),
+      ["load_failed", "n_days", "nothing_this_week", "today", "tomorrow", "unit_day", "unit_days"],
+    );
+    const english = JSON.parse(readFileSync(EN, "utf8"));
+    assert.deepEqual(Object.fromEntries([...asked].sort()), Object.fromEntries(Object.entries(english).sort()));
+  });
+
+  test("a translation replaces the widget's words", () => {
+    const FR = {
+      tomorrow: "Demain",
+      n_days: "{n} jours",
+      unit_day: "jour",
+      unit_days: "jours",
+      nothing_this_week: "Rien cette semaine",
+    };
+    const t = (key, fallback) => FR[key] ?? fallback;
+    const sm = drawWith(t, "sm", { days: [TOMORROW, MONDAY] });
+    assert.ok(sm.includes("Demain"));
+    assert.ok(sm.includes("6 jours"));
+    assert.ok(drawWith(t, "xs", { days: [MONDAY] }).includes(">jours<"));
+    assert.ok(drawWith(t, "sm", { days: [] }).includes("Rien cette semaine"));
   });
 });

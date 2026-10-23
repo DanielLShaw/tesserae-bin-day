@@ -1,0 +1,9 @@
+{
+  "today": "Today",
+  "tomorrow": "Tomorrow",
+  "n_days": "{n} days",
+  "unit_day": "day",
+  "unit_days": "days",
+  "nothing_this_week": "Nothing this week",
+  "load_failed": "Couldn't load bin collections."
+}

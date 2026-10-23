@@ -57,10 +57,15 @@ const ENTITIES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ENTITIES[c]);
 const safeColour = (value) => (HEX_COLOUR.test(value) ? value : "var(--surface-sunken)");
 
-export function dayLabel(daysUntil) {
-  if (daysUntil === 0) return "Today";
-  if (daysUntil === 1) return "Tomorrow";
-  return `${daysUntil} days`;
+// The widget's own words come through the host's translations
+// (strings/<locale>.json) when it has them, else the English given here.
+const english = (key, fallback) => fallback;
+const words = (ctx) => (typeof ctx?.t === "function" ? (key, fallback) => ctx.t(key, fallback) : english);
+
+export function dayLabel(daysUntil, t = english) {
+  if (daysUntil === 0) return t("today", "Today");
+  if (daysUntil === 1) return t("tomorrow", "Tomorrow");
+  return t("n_days", "{n} days").replace("{n}", String(daysUntil));
 }
 
 // Bin days are calendar dates, so they are formatted in UTC: the browser's
@@ -140,9 +145,12 @@ const PATTERNS = `<svg class="defs" aria-hidden="true"><defs>
 const monoAttr = (stream) =>
   `data-mono="${MONO_FILLS.includes(stream.mono_fill) ? stream.mono_fill : "white"}"`;
 
-export function xsCount(daysUntil) {
-  if (daysUntil === 0) return { number: "", unit: "Today" };
-  return { number: String(daysUntil), unit: daysUntil === 1 ? "day" : "days" };
+export function xsCount(daysUntil, t = english) {
+  if (daysUntil === 0) return { number: "", unit: t("today", "Today") };
+  return {
+    number: String(daysUntil),
+    unit: daysUntil === 1 ? t("unit_day", "day") : t("unit_days", "days"),
+  };
 }
 
 // Every stream gets a chip while they fit the slots; beyond that, the last
@@ -214,67 +222,67 @@ function errorBody(message) {
   </div>`;
 }
 
-function emptyBody() {
+function emptyBody(t) {
   return `<div class="notice">
     <i class="ph-bold ph-calendar-check" aria-hidden="true"></i>
-    <p>Nothing this week</p>
+    <p>${escapeHtml(t("nothing_this_week", "Nothing this week"))}</p>
   </div>`;
 }
 
-function xsBody(day) {
-  const { number, unit } = xsCount(day.days_until);
+function xsBody(day, t) {
+  const { number, unit } = xsCount(day.days_until, t);
   const big = number ? `<span class="count-number">${escapeHtml(number)}</span>` : "";
-  return `${rowChips(day.streams, day.streams.length >= ROW_SLOTS)}<div class="count">${big}<span class="count-unit">${unit}</span></div>`;
+  return `${rowChips(day.streams, day.streams.length >= ROW_SLOTS)}<div class="count">${big}<span class="count-unit">${escapeHtml(unit)}</span></div>`;
 }
 
 // The next collection in a small cell, bins first. The count sits beside the
 // bins or above them, whichever leaves the bins bigger in a w by h cell; with
 // no size to go on, above.
-function nextBody(day, { w, h }, locale) {
+function nextBody(day, { w, h }, locale, t) {
   const slots = Math.min(day.streams.length, SMALL_SLOTS);
   const binFor = (width, height) => Math.min(width / (slots * BIN_PITCH), height / BIN_NAMED_TALL);
   const known = w > 0 && h > 0;
   const beside = known && binFor(w * (1 - HEAD_SHARE), h) > binFor(w, h * (1 - HEAD_SHARE));
   const named = !known || (beside ? w * (1 - HEAD_SHARE) : w) / slots >= NAME_MIN;
-  const { number, unit } = xsCount(day.days_until);
+  const { number, unit } = xsCount(day.days_until, t);
   const big = number ? `<span class="count-number">${escapeHtml(number)}</span>` : "";
   // Beside the bins the date may wrap; its day and month stay together.
   const date = shortDate(day.date, locale).replace(/ (?=\S+$)/, " ");
   return `<div class="next ${beside ? "beside" : "above"}${named ? "" : " no-names"}" style="--bins:${slots}">
-    <div class="next-head"><div class="count">${big}<span class="count-unit">${unit}</span></div><span class="next-date">${escapeHtml(date)}</span></div>
+    <div class="next-head"><div class="count">${big}<span class="count-unit">${escapeHtml(unit)}</span></div><span class="next-date">${escapeHtml(date)}</span></div>
     <div class="next-bins">${bins(day.streams, SMALL_SLOTS)}</div>
   </div>`;
 }
 
-function smBody(days) {
+function smBody(days, t) {
   const [upcoming] = days;
   if (upcoming.streams.length >= BUSY_FROM) {
-    return `<div class="day-stack"><span class="day-label">${escapeHtml(dayLabel(upcoming.days_until))}</span>${gridChips(upcoming.streams)}</div>`;
+    return `<div class="day-stack"><span class="day-label">${escapeHtml(dayLabel(upcoming.days_until, t))}</span>${gridChips(upcoming.streams)}</div>`;
   }
   const rows = days.slice(0, MAX_ROWS);
   const small = rows.some((day) => day.streams.length >= ROW_SLOTS);
   return rows
     .map(
       (day) =>
-        `<div class="day-row">${rowChips(day.streams, small)}<span class="day-label">${escapeHtml(dayLabel(day.days_until))}</span></div>`,
+        `<div class="day-row">${rowChips(day.streams, small)}<span class="day-label">${escapeHtml(dayLabel(day.days_until, t))}</span></div>`,
     )
     .join("");
 }
 
-function dayColumn(day, locale, slots) {
+function dayColumn(day, locale, slots, t) {
   return `<div class="day-col">
-    <div class="day-head"><span class="day-label">${escapeHtml(dayLabel(day.days_until))}</span><span class="day-date">${escapeHtml(shortDate(day.date, locale))}</span></div>
+    <div class="day-head"><span class="day-label">${escapeHtml(dayLabel(day.days_until, t))}</span><span class="day-date">${escapeHtml(shortDate(day.date, locale))}</span></div>
     ${bins(day.streams, slots)}
   </div>`;
 }
 
 // client.css sizes the bins from the layout's shape: --bins across a line,
 // --lines of them, --cols day columns, --strip rows below.
-function mdBody(days, locale) {
+function mdBody(days, locale, t) {
   const [upcoming] = days;
   if (upcoming.streams.length > MD_BINS) {
     const used = Math.min(upcoming.streams.length, HERO_SLOTS);
-    return `<div class="day-cols" style="--bins:${Math.ceil(used / 2)};--cols:1;--lines:2">${dayColumn(upcoming, locale, HERO_SLOTS)}</div>`;
+    return `<div class="day-cols" style="--bins:${Math.ceil(used / 2)};--cols:1;--lines:2">${dayColumn(upcoming, locale, HERO_SLOTS, t)}</div>`;
   }
   const columns = [{ day: upcoming, slots: MD_BINS }];
   let left = MD_BINS - upcoming.streams.length;
@@ -291,44 +299,45 @@ function mdBody(days, locale) {
     (sum, { day, slots }) => sum + Math.max(Math.min(day.streams.length, slots), MD_COL_MIN),
     0,
   );
-  const html = columns.map(({ day, slots }) => dayColumn(day, locale, slots)).join("");
+  const html = columns.map(({ day, slots }) => dayColumn(day, locale, slots, t)).join("");
   return `<div class="day-cols" style="--bins:${across};--cols:${columns.length};--lines:1">${html}</div>`;
 }
 
-function stripRow(day, locale) {
+function stripRow(day, locale, t) {
   const names =
     day.streams.length <= STRIP_NAMED_MAX
       ? `<span class="strip-names">${escapeHtml(day.streams.map((stream) => stream.label).join(", "))}</span>`
       : "";
-  const when = `${dayLabel(day.days_until)} · ${shortWeekday(day.date, locale)}`;
+  const when = `${dayLabel(day.days_until, t)} · ${shortWeekday(day.date, locale)}`;
   return `<div class="strip-row">${chips(day.streams, HERO_SLOTS, "")}${names}<span class="strip-when">${escapeHtml(when)}</span></div>`;
 }
 
-function lgBody(days, locale) {
+function lgBody(days, locale, t) {
   const [hero, ...later] = days;
   const used = Math.min(hero.streams.length, HERO_SLOTS);
   const lines = used > MD_BINS ? 2 : 1;
   const strip = later.slice(0, STRIP_DAYS);
   const shape = `--bins:${Math.ceil(used / lines)};--lines:${lines};--strip:${strip.length}`;
   return `<div class="hero" style="${shape}">
-    <div class="hero-head"><span class="hero-label">${escapeHtml(dayLabel(hero.days_until))}</span><span class="hero-date">${escapeHtml(longDate(hero.date, locale))}</span></div>
+    <div class="hero-head"><span class="hero-label">${escapeHtml(dayLabel(hero.days_until, t))}</span><span class="hero-date">${escapeHtml(longDate(hero.date, locale))}</span></div>
     <div class="hero-bins">${bins(hero.streams, HERO_SLOTS)}</div>
-  </div>${strip.length ? `<div class="strip">${strip.map((day) => stripRow(day, locale)).join("")}</div>` : ""}`;
+  </div>${strip.length ? `<div class="strip">${strip.map((day) => stripRow(day, locale, t)).join("")}</div>` : ""}`;
 }
 
 export default function render(shadow, ctx) {
   const size = SIZES.includes(ctx.cell.size) ? ctx.cell.size : "sm";
   const data = ctx.data;
+  const t = words(ctx);
   let body;
   if (data?.error) body = errorBody(data.error);
-  else if (!Array.isArray(data?.days)) body = errorBody("Couldn't load bin collections.");
-  else if (!data.days.length) body = emptyBody();
+  else if (!Array.isArray(data?.days)) body = errorBody(t("load_failed", "Couldn't load bin collections."));
+  else if (!data.days.length) body = emptyBody(t);
   else if ((size === "xs" || size === "sm") && ctx.cell.options?.small_cells === "bins") {
-    body = nextBody(data.days[0], ctx.cell, ctx.locale);
-  } else if (size === "xs") body = xsBody(data.days[0]);
-  else if (size === "md") body = mdBody(data.days, ctx.locale);
-  else if (size === "lg") body = lgBody(data.days, ctx.locale);
-  else body = smBody(data.days);
+    body = nextBody(data.days[0], ctx.cell, ctx.locale, t);
+  } else if (size === "xs") body = xsBody(data.days[0], t);
+  else if (size === "md") body = mdBody(data.days, ctx.locale, t);
+  else if (size === "lg") body = lgBody(data.days, ctx.locale, t);
+  else body = smBody(data.days, t);
   const mono = isMono(shadow, ctx.cell.options);
   shadow.innerHTML = `${STYLESHEETS}
   <div class="w bin-day size-${size}${mono ? " mono" : ""}" data-widget="bin_day">

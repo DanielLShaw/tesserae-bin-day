@@ -257,3 +257,12 @@ def test_dates_and_names_follow_the_styles_label_size(tab, bins, w, h, selector)
     standard = font_size(tab, selector)
     show(tab, w, h, style="elegant")
     assert font_size(tab, selector) / standard == pytest.approx(0.74 / 0.8, abs=0.02)
+
+
+def test_bins_grow_when_names_are_hidden(tab, bins):
+    bins(LIVERPOOL)
+    show(tab, 640, 400)
+    named = box(tab.locator(".day-col .bin").first)
+    show(tab, 640, 400, show_names=False)
+    unnamed = box(tab.locator(".day-col .bin").first)
+    assert unnamed[3] - unnamed[1] > named[3] - named[1]

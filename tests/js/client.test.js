@@ -655,3 +655,26 @@ describe("title bar", () => {
     assert.ok(!html.includes("w-title"));
   });
 });
+
+describe("Show bin names", () => {
+  function drawOpts(size, data, options) {
+    const shadow = { innerHTML: "" };
+    render(shadow, { cell: { size, options }, data, locale: "en" });
+    return shadow.innerHTML;
+  }
+
+  test("Show bin names off drops every name but keeps each bin's label for screen readers", () => {
+    for (const [size, options] of [["md", {}], ["lg", {}], ["xs", { small_cells: "bins" }]]) {
+      const html = drawOpts(size, { days: [TOMORROW, MONDAY] }, { ...options, show_names: false });
+      assert.ok(!html.includes("bin-label"), size);
+      assert.ok(!html.includes("strip-names"), size);
+      assert.ok(html.includes('aria-label="Refuse"'), size);
+    }
+  });
+
+  test("names show when the option was never set", () => {
+    assert.ok(drawOpts("md", { days: [TOMORROW] }, {}).includes('class="bin-label">Refuse<'));
+    assert.ok(drawOpts("lg", { days: [TOMORROW, MONDAY] }, {}).includes('class="strip-names"'));
+    assert.ok(drawOpts("xs", { days: [TOMORROW] }, { small_cells: "bins" }).includes('class="bin-label">Refuse<'));
+  });
+});

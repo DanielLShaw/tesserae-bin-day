@@ -181,20 +181,22 @@ const BIN_SVG = `<svg viewBox="0 0 60 80" aria-hidden="true">
   <circle class="wheel" cx="47" cy="73" r="6"/>
 </svg>`;
 
-function bin(stream) {
+// A bin with its name under it, or without (Show bin names off): its
+// aria-label names it for screen readers either way.
+function bin(stream, named = true) {
   const colours = [
     `--body:${safeColour(stream.body_colour)}`,
     `--lid:${safeColour(stream.lid_colour)}`,
     `--ink:${safeColour(stream.icon_colour)}`,
   ].join(";");
   const name = escapeHtml(stream.label);
-  return `<span class="bin-item"><span class="bin" ${monoAttr(stream)} role="img" aria-label="${name}" style="${colours}">${BIN_SVG}${iconHtml(stream)}</span><span class="bin-label">${name}</span></span>`;
+  return `<span class="bin-item"><span class="bin" ${monoAttr(stream)} role="img" aria-label="${name}" style="${colours}">${BIN_SVG}${iconHtml(stream)}</span>${named ? `<span class="bin-label">${name}</span>` : ""}</span>`;
 }
 
-function bins(streams, slots) {
+function bins(streams, slots, named = true) {
   const { shown, extra } = visibleChips(streams, slots);
   const more = extra ? `<span class="more">+${extra}</span>` : "";
-  return `<div class="bins">${shown.map(bin).join("")}${more}</div>`;
+  return `<div class="bins">${shown.map((stream) => bin(stream, named)).join("")}${more}</div>`;
 }
 
 function chips(streams, slots, layout, style = "") {
@@ -252,14 +254,15 @@ function xsBody(day, t) {
 }
 
 // The next collection in a small cell: its bins, then the count and date.
-// Names drop when the cell (w wide) gives each bin less than NAME_MIN.
-function nextBody(day, { w }, locale, t) {
+// Names drop when Show bin names is off, or the cell (w wide) gives each bin
+// less than NAME_MIN.
+function nextBody(day, { w, options }, locale, t) {
   const slots = Math.min(day.streams.length, SMALL_SLOTS);
-  const named = !(w > 0) || w / slots >= NAME_MIN;
+  const named = options?.show_names !== false && (!(w > 0) || w / slots >= NAME_MIN);
   // Should the date wrap, its day and month stay together.
   const date = shortDate(day.date, locale).replace(/ (?=\S+$)/, "\u00a0");
   return `<div class="next${named ? "" : " no-names"}" style="--bins:${slots}">
-    ${bins(day.streams, SMALL_SLOTS)}
+    ${bins(day.streams, SMALL_SLOTS, named)}
     <div class="next-head">${countHtml(day.days_until, t)}<span class="next-date">${escapeHtml(date)}</span></div>
   </div>`;
 }
@@ -279,20 +282,21 @@ function smBody(days, t) {
     .join("");
 }
 
-function dayColumn(day, locale, slots, t) {
+function dayColumn(day, locale, slots, t, named) {
   return `<div class="day-col">
-    ${bins(day.streams, slots)}
+    ${bins(day.streams, slots, named)}
     <div class="day-head"><span class="day-label">${escapeHtml(dayLabel(day.days_until, t))}</span><span class="day-date">${escapeHtml(shortDate(day.date, locale))}</span></div>
   </div>`;
 }
 
 // client.css sizes the bins from the layout's shape: --bins across a line,
 // --lines of them, --cols day columns, --strip rows below.
-function mdBody(days, locale, t) {
+function mdBody(days, locale, t, named) {
+  const cols = `day-cols${named ? "" : " no-names"}`;
   const [upcoming] = days;
   if (upcoming.streams.length > MD_BINS) {
     const used = Math.min(upcoming.streams.length, HERO_SLOTS);
-    return `<div class="day-cols" style="--bins:${Math.ceil(used / 2)};--cols:1;--lines:2">${dayColumn(upcoming, locale, HERO_SLOTS, t)}</div>`;
+    return `<div class="${cols}" style="--bins:${Math.ceil(used / 2)};--cols:1;--lines:2">${dayColumn(upcoming, locale, HERO_SLOTS, t, named)}</div>`;
   }
   const columns = [{ day: upcoming, slots: MD_BINS }];
   let left = MD_BINS - upcoming.streams.length;
@@ -309,35 +313,36 @@ function mdBody(days, locale, t) {
     (sum, { day, slots }) => sum + Math.max(Math.min(day.streams.length, slots), MD_COL_MIN),
     0,
   );
-  const html = columns.map(({ day, slots }) => dayColumn(day, locale, slots, t)).join("");
-  return `<div class="day-cols" style="--bins:${across};--cols:${columns.length};--lines:1">${html}</div>`;
+  const html = columns.map(({ day, slots }) => dayColumn(day, locale, slots, t, named)).join("");
+  return `<div class="${cols}" style="--bins:${across};--cols:${columns.length};--lines:1">${html}</div>`;
 }
 
-function stripRow(day, locale, t) {
+function stripRow(day, locale, t, named) {
   const names =
-    day.streams.length <= STRIP_NAMED_MAX
+    named && day.streams.length <= STRIP_NAMED_MAX
       ? `<span class="strip-names">${escapeHtml(day.streams.map((stream) => stream.label).join(", "))}</span>`
       : "";
   const when = `${dayLabel(day.days_until, t)} · ${shortWeekday(day.date, locale)}`;
   return `<div class="strip-row">${chips(day.streams, HERO_SLOTS, "")}${names}<span class="strip-when">${escapeHtml(when)}</span></div>`;
 }
 
-function lgBody(days, locale, t) {
+function lgBody(days, locale, t, named) {
   const [hero, ...later] = days;
   const used = Math.min(hero.streams.length, HERO_SLOTS);
   const lines = used > MD_BINS ? 2 : 1;
   const strip = later.slice(0, STRIP_DAYS);
   const shape = `--bins:${Math.ceil(used / lines)};--lines:${lines};--strip:${strip.length}`;
-  return `<div class="hero" style="${shape}">
-    <div class="hero-bins">${bins(hero.streams, HERO_SLOTS)}</div>
+  return `<div class="hero${named ? "" : " no-names"}" style="${shape}">
+    <div class="hero-bins">${bins(hero.streams, HERO_SLOTS, named)}</div>
     <div class="hero-head"><span class="hero-label">${escapeHtml(dayLabel(hero.days_until, t))}</span><span class="hero-date">${escapeHtml(longDate(hero.date, locale))}</span></div>
-  </div>${strip.length ? `<div class="strip">${strip.map((day) => stripRow(day, locale, t)).join("")}</div>` : ""}`;
+  </div>${strip.length ? `<div class="strip">${strip.map((day) => stripRow(day, locale, t, named)).join("")}</div>` : ""}`;
 }
 
 export default function render(shadow, ctx) {
   const size = SIZES.includes(ctx.cell.size) ? ctx.cell.size : "sm";
   const data = ctx.data;
   const t = words(ctx);
+  const named = ctx.cell.options?.show_names !== false;
   let body;
   if (data?.error) body = errorBody(data.error);
   else if (!Array.isArray(data?.days)) body = errorBody(t("load_failed", "Couldn't load bin collections."));
@@ -345,8 +350,8 @@ export default function render(shadow, ctx) {
   else if ((size === "xs" || size === "sm") && ctx.cell.options?.small_cells === "bins") {
     body = nextBody(data.days[0], ctx.cell, ctx.locale, t);
   } else if (size === "xs") body = xsBody(data.days[0], t);
-  else if (size === "md") body = mdBody(data.days, ctx.locale, t);
-  else if (size === "lg") body = lgBody(data.days, ctx.locale, t);
+  else if (size === "md") body = mdBody(data.days, ctx.locale, t, named);
+  else if (size === "lg") body = lgBody(data.days, ctx.locale, t, named);
   else body = smBody(data.days, t);
   const mono = isMono(shadow, ctx.cell.options);
   shadow.innerHTML = `${STYLESHEETS}

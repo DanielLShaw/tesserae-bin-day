@@ -58,6 +58,12 @@ def test_small_cells_offer_chips_by_default_or_the_wheelie_bins_client_js_draws(
     assert [c["value"] for c in option["choices"]] == ["chips", "bins"]
 
 
+def test_show_names_defaults_on_and_follows_small_cells():
+    names = [o["name"] for o in manifest("bin_day")["cell_options"]]
+    assert names.index("show_names") == names.index("small_cells") + 1
+    assert cell_option("show_names")["default"] is True
+
+
 def test_widget_offers_the_daily_refresh(registry):
     from app.scheduled_refresh import _supported
 

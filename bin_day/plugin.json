@@ -197,6 +197,13 @@
         }
       ],
       "help": "For XS and SM cells. Chips show the next two collection days, each bin as a coloured square. Wheelie bins show only the next collection, its bins drawn as large as the cell allows. MD and LG cells always show wheelie bins."
+    },
+    {
+      "name": "show_names",
+      "type": "boolean",
+      "label": "Show bin names",
+      "default": true,
+      "help": "Off hides the names under wheelie bins, and in LG's list of later days. The bins grow into the space."
     }
   ],
   "updates": {

@@ -165,6 +165,11 @@
   --name-line: calc(var(--fs-label) * 1.35);
 }
 
+/* Show bin names off: no names, so the bins size without their line */
+.bin-day .no-names {
+  --name-line: 0px;
+}
+
 .bin-day .bins {
   display: flex;
   flex-wrap: wrap;
@@ -269,7 +274,7 @@
   align-items: flex-start;
   gap: var(--space-2);
   --count-size: var(--fs-value);
-  --head: calc(var(--count-size) * 1.05 + var(--name-line) + var(--space-1));
+  --head: calc(var(--count-size) * 1.05 + var(--fs-label) * 1.35 + var(--space-1));
 }
 
 .bin-day .next .bins {
@@ -348,7 +353,7 @@
   container-type: size;
   display: flex;
   gap: 3cqw;
-  --head: calc(var(--fs-lead) * 1.05 + var(--name-line) + var(--space-1));
+  --head: calc(var(--fs-lead) * 1.05 + var(--fs-label) * 1.35 + var(--space-1));
   /* the bins across every column share the width (columns add a gap and a
      rule); their heights, with names, share what the day labels leave */
 }

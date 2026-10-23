@@ -266,3 +266,30 @@ def test_bins_grow_when_names_are_hidden(tab, bins):
     show(tab, 640, 400, show_names=False)
     unnamed = box(tab.locator(".day-col .bin").first)
     assert unnamed[3] - unnamed[1] > named[3] - named[1]
+
+
+def computed(tab, selector, prop):
+    return tab.locator(selector).first.evaluate(f"el => getComputedStyle(el).{prop}")
+
+
+def test_black_and_white_inks_come_from_the_theme(tab, bins):
+    bins(LIVERPOOL)
+    show(tab, 640, 400, theme="dark", colours="mono")
+    ink, paper = computed(tab, ".bin-day", "color"), computed(tab, ".bin-day", "backgroundColor")
+    assert computed(tab, '.bin[data-mono="solid"] .body', "fill") == ink
+    assert computed(tab, '.bin[data-mono="white"] .body', "fill") == paper
+
+
+@pytest.mark.parametrize("style, width", [("standard", "0px"), ("mono", "2px"), ("destijl", "4px")])
+def test_dividers_follow_the_style(tab, bins, style, width):
+    bins(LIVERPOOL)
+    show(tab, 640, 400, style=style)
+    assert computed(tab, ".day-col + .day-col", "borderLeftWidth") == width
+    show(tab, 1200, 800, style=style)
+    assert computed(tab, ".strip", "borderTopWidth") == width
+
+
+def test_narrow_notices_stack_their_icon_above_the_text(tab, bins):
+    bins(NOTHING_THIS_WEEK)
+    show(tab, 340, 220)
+    assert box(tab.locator(".notice i"))[3] <= box(tab.locator(".notice p"))[1]

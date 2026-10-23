@@ -180,6 +180,32 @@ class TestSource:
         assert '<p class="field-help bd-note" data-titles-status aria-live="polite"></p>' in html
 
 
+class TestBehindIngress:
+    """Opened from Home Assistant's sidebar, every Tesserae URL sits under the ingress
+    prefix, so a path from the site root reaches Home Assistant instead."""
+
+    INGRESS = "/api/hassio_ingress/abc123"
+
+    def ingress_page(self, client):
+        resp = client.get(INDEX, headers={"X-Ingress-Path": self.INGRESS})
+        assert resp.status_code == 200
+        return resp.get_data(as_text=True)
+
+    @pytest.mark.parametrize(
+        "pattern",
+        [r'<link rel="stylesheet" href="([^"]*admin\.css)"', r'<script src="([^"]*admin\.js)"'],
+    )
+    def test_the_pages_styles_and_script_load_from_under_the_prefix(self, client, pattern):
+        url = re.search(pattern, self.ingress_page(client))[1]
+        assert url.startswith(f"{self.INGRESS}/plugins/bin_day_core/static/")
+        assert client.get(url, headers={"X-Ingress-Path": self.INGRESS}).status_code == 200
+
+    def test_the_connect_link_stays_under_the_prefix(self, client, stored):
+        stored(source="calendar")
+        html = self.ingress_page(client)
+        assert f'<a href="{self.INGRESS}/settings/plugins#plugin-ha_core">' in html
+
+
 class TestSchedule:
     def test_saved_bins_are_shown_as_rows(self, client, stored):
         stored(schedule=[bin_("Refuse", icon="trash")])

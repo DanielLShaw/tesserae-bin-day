@@ -3,8 +3,8 @@
 {% block title %}Bin Day Core, Tesserae{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="/plugins/bin_day_core/static/admin.css">
-<script src="/plugins/bin_day_core/static/admin.js" defer></script>
+<link rel="stylesheet" href="{{ url_for('plugins.plugin_asset', plugin_id='bin_day_core', asset='static/admin.css') }}">
+<script src="{{ url_for('plugins.plugin_asset', plugin_id='bin_day_core', asset='static/admin.js') }}" defer></script>
 {% endblock %}
 
 {% from "bin_day_core/_rows.html" import bin_row, mapping_row, calendar_rows with context %}
@@ -48,7 +48,7 @@
     {% if ha_problem == 'unconfigured' %}
     <p class="field-help bd-note"><i class="ph ph-warning-circle" aria-hidden="true"></i>
       Connect Home Assistant Core first: add your Home Assistant URL and an access token in
-      <a href="/settings/plugins#plugin-ha_core">Settings, Widgets, Home Assistant Core</a>.</p>
+      <a href="{{ url_for('auth.settings_area', area='plugins') }}#plugin-ha_core">Settings, Widgets, Home Assistant Core</a>.</p>
     {% elif ha_problem == 'unreachable' %}
     <p class="field-help bd-note"><i class="ph ph-warning-circle" aria-hidden="true"></i>
       Home Assistant can't be reached right now: check Home Assistant Core's URL and token.</p>

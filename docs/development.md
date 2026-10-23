@@ -85,8 +85,8 @@ node --check bin_day/client.js bin_day_core/static/admin.js
 | `test_ha_source.py` | The calendar source end to end against a fake Home Assistant: the calendar chosen in Core, query, renamed calendar, not connected, the 1-hour cache and 24-hour fallback |
 | `test_plugins_load.py`, `test_manifests.py` | Both plugins load in Tesserae, validate against its schema, offer the cutoff and colour options and a daily refresh |
 | `test_widget.py` | `fetch()` end to end, including every error tile |
-| `test_admin.py`, `test_core_server.py` | The admin page (source, bins, a calendar's bin names and its own saved settings, the rows endpoint, saving and its errors), config storage and its older shape, timezone and plugin reload |
-| `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, switching calendars (only that calendar's bins show, unsaved edits survive, every calendar shown is saved) |
+| `test_admin.py`, `test_core_server.py` | The admin page (source, bins, a calendar's bin names and its own saved settings, the rows endpoint, saving and its errors, links under Home Assistant's ingress prefix), config storage and its older shape, timezone and plugin reload |
+| `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, switching calendars (only that calendar's bins show, unsaved edits survive, every calendar shown is saved), and the page opened through Home Assistant's sidebar (ingress) |
 | `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for; the docs have each docs scenario's images |
 | `test_release.py` | Every root folder other than the two plugins is left out of the release tarball |
 | `tests/js/client.test.js` | Day labels, chip overflow, XS/SM/empty/error layouts, HTML and CSS escaping |

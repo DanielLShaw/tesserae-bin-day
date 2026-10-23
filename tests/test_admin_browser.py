@@ -1,6 +1,7 @@
 """The Bin Day Core admin page's scripts, driven in a real browser."""
 
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -248,3 +249,26 @@ def test_add_a_name_adds_to_the_chosen_calendar(tab, core, two_calendars):
     assert added.locator("[data-calendar-input]").input_value() == COTTAGE
     assert added.locator("[name$=-match]").get_attribute("name") == "mappings-3-match"
     assert added.locator("[name$=-match]").evaluate("el => el === document.activeElement")
+
+
+def test_behind_home_assistant_ingress_the_page_is_styled_and_works(tab, core, two_calendars):
+    """Home Assistant's sidebar serves Tesserae under an ingress prefix, and anything
+    asked for outside that prefix reaches Home Assistant, which answers 404."""
+    ingress = "/api/hassio_ingress/abc123"
+    tab.route(
+        lambda url: url.startswith(tab.base_url) and not urlsplit(url).path.startswith(ingress),
+        lambda route: route.fulfill(status=404),
+    )
+    tab.context.set_extra_http_headers({"X-Ingress-Path": ingress})
+    core.save(source="schedule")
+    tab.goto(tab.base_url + ingress + ADMIN)
+    tab.wait_for_load_state("networkidle")
+    assert tab.locator(".bd-sources").evaluate("el => getComputedStyle(el).display") == "grid"
+    tab.check('input[name="source"][value="calendar"]')
+    choose(tab, LIVERPOOL)
+    assert shown_titles(tab, 2) == ["Refuse", "Green"]
+    tab.click('[data-bd-form] button[type="submit"]')
+    tab.wait_for_load_state("networkidle")
+    assert urlsplit(tab.url).path == ingress + ADMIN
+    saved = core.load()
+    assert (saved["source"], saved["calendar"]) == ("calendar", LIVERPOOL)

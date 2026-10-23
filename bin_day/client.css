@@ -60,8 +60,12 @@
   background: var(--surface-sunken);
   color: var(--text-primary);
   font-weight: var(--fw-bold);
-  font-size: calc(var(--chip) * 0.4);
   font-variant-numeric: tabular-nums;
+}
+
+/* the "+N" text, sized from its chip; the badge keeps the chips' em */
+.bin-day .more > span {
+  font-size: calc(var(--chip) * 0.4);
 }
 
 /* ---- the days left: Tesserae's big number (.stat-value, .unit) ---------- */
@@ -182,7 +186,7 @@
 .bin-day .bin-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start; /* on the left, its name under it */
   gap: calc(var(--bin) * 0.06);
   width: calc(var(--bin) * 1.15);
   min-width: 0;
@@ -250,6 +254,9 @@
   width: var(--bin);
   height: calc(var(--bin) * 4 / 3);
   border-radius: calc(var(--bin) * 0.12);
+}
+
+.bin-day .bins .more > span {
   font-size: calc(var(--bin) * 0.3);
 }
 
@@ -353,7 +360,7 @@
   container-type: size;
   display: flex;
   gap: 3cqw;
-  --head: calc(var(--fs-lead) * 1.05 + var(--fs-label) * 1.35 + var(--space-1));
+  --head: calc(var(--fs-body) * 1.05 + var(--fs-label) * 1.35 + var(--space-1));
   /* the bins across every column share the width (columns add a gap and a
      rule); their heights, with names, share what the day labels leave */
 }
@@ -386,8 +393,9 @@
   gap: var(--space-1);
 }
 
+/* the body size: a column reserves two bin widths for its day label */
 .bin-day.size-md .day-label {
-  font-size: var(--fs-lead);
+  font-size: var(--fs-body);
 }
 
 /* ---- lg: the upcoming day's bins then its day, later days at the bottom -- */
@@ -458,7 +466,7 @@
 }
 
 .bin-day .strip-names {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -466,7 +474,6 @@
 
 .bin-day .strip-when {
   flex: 0 0 auto;
-  margin-left: auto; /* right-aligned, names or not */
   font-variant-numeric: tabular-nums;
 }
 
@@ -478,6 +485,9 @@
   /* the theme's ink and paper: black on white in Paper and Newsprint */
   --mono-ink: var(--text-primary);
   --mono-paper: var(--surface);
+  /* icons drawn on ink: the ink inverted, opaque even where a canvas
+     dashboard makes --surface transparent */
+  --mono-on-ink: rgb(from var(--mono-ink) calc(255 - r) calc(255 - g) calc(255 - b));
 }
 
 .bin-day .defs {
@@ -517,7 +527,7 @@
 /* solid */
 .bin-day.mono .chip[data-mono="solid"] {
   background: var(--mono-ink);
-  color: var(--mono-paper);
+  color: var(--mono-on-ink);
 }
 
 .bin-day.mono .bin[data-mono="solid"] .body,
@@ -526,7 +536,7 @@
 }
 
 .bin-day.mono .bin[data-mono="solid"] i {
-  color: var(--mono-paper);
+  color: var(--mono-on-ink);
 }
 
 /* patterned: hatched, dotted, cross-hatched */
@@ -562,7 +572,7 @@
 .bin-day.mono :is([data-mono="hatched"], [data-mono="dotted"], [data-mono="crosshatch"]) i {
   padding: 0.22em;
   border-radius: 50%;
-  background: var(--mono-paper);
+  background: var(--mono-on-ink);
 }
 
 .bin-day.mono .chip:is([data-mono="hatched"], [data-mono="dotted"], [data-mono="crosshatch"]) i {
@@ -582,7 +592,8 @@
 
 /* ---- empty state and error tile ---------------------------------------- */
 .bin-day .notice {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-height: 0;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
@@ -646,9 +657,20 @@
   }
 }
 
-/* Compact bodies (Tesserae's 360px breakpoint): the empty and error tiles
-   stack their icon above the text. */
-@container (max-width: 360px) {
+/* Short bodies: the message gets the whole width and the label size. */
+@container (max-height: 100px) {
+  .bin-day .notice i {
+    display: none;
+  }
+
+  .bin-day .notice.is-error p {
+    font-size: var(--fs-label);
+  }
+}
+
+/* Compact bodies (Tesserae's 360px breakpoint) with the height for it: the
+   empty and error tiles stack their icon above the text. */
+@container (max-width: 360px) and (min-height: 140px) {
   .bin-day .notice {
     flex-direction: column;
     align-items: flex-start;

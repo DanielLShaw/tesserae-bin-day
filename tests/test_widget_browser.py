@@ -223,12 +223,21 @@ def test_every_layout_reads_title_then_bins_then_days_from_the_top_left(
         assert abs(block[0] - content[0]) <= 2, f"{selector} is not on the left"
         assert -1 <= block[1] - previous[3] <= limit, f"{selector} is not straight below"
         previous = block
+    shapes = tab.locator(".w-body :is(.bin, .chip)")
+    if shapes.count():
+        assert abs(box(shapes.first)[0] - content[0]) <= 2, "the first bin is not on the left"
     if case == "sm-chips":
         for row in tab.locator(".day-row").all():
             chips, label = box(row.locator(".chips")), box(row.locator(".day-label"))
             assert 0 <= label[0] - chips[2] <= 32
     if case == "lg":
         assert abs(box(tab.locator(".strip"))[3] - content[3]) <= 2
+        for row in tab.locator(".strip-row").all():
+            when, before = (
+                box(row.locator(".strip-when")),
+                box(row.locator(".strip-when >> xpath=preceding-sibling::*[1]")),
+            )
+            assert 0 <= when[0] - before[2] <= limit, "when is pushed away from the names"
     cell = box(tab.locator(".cell").first)
     drawn = tab.locator(f".w-title, .w-body :is({DRAWN}):visible")
     for element in drawn.all():
@@ -293,3 +302,71 @@ def test_narrow_notices_stack_their_icon_above_the_text(tab, bins):
     bins(NOTHING_THIS_WEEK)
     show(tab, 340, 220)
     assert box(tab.locator(".notice i"))[3] <= box(tab.locator(".notice p"))[1]
+
+
+# "+N" stands in for the bins it hides, so it is the size of a bin or chip.
+FOUR_TOMORROW = [bin_(f"Bin {n}", "2026-10-07") for n in range(4)]
+BUSY_SECOND_DAY = [bin_("Refuse", "2026-10-07")] + [
+    bin_(f"Bin {n}", "2026-10-12") for n in range(5)
+]
+FOURTEEN_TOMORROW = [bin_(f"Bin {n}", "2026-10-07") for n in range(14)]
+
+
+@pytest.mark.parametrize(
+    "w, h, streams, scope, shape",
+    [
+        (200, 120, FOUR_TOMORROW, ".chips", ".chip"),
+        (300, 240, BUSY_SECOND_DAY, ".day-row >> nth=1", ".chip"),
+        (640, 400, FOURTEEN_TOMORROW, ".bins", ".bin"),
+    ],
+    ids=["xs", "sm-second-day", "md-overflow"],
+)
+def test_a_plus_n_badge_is_the_size_of_its_neighbours(tab, bins, w, h, streams, scope, shape):
+    bins(streams)
+    show(tab, w, h)
+    row = tab.locator(scope).first
+    neighbour, more = box(row.locator(shape).first), box(row.locator(".more"))
+    assert abs((more[2] - more[0]) - (neighbour[2] - neighbour[0])) <= 1
+    assert abs((more[3] - more[1]) - (neighbour[3] - neighbour[1])) <= 1
+    cell = box(tab.locator(".cell").first)
+    for element in tab.locator(f".w-title, .w-body :is({DRAWN}):visible").all():
+        assert within(box(element), cell), element.evaluate("el => el.outerHTML.slice(0, 60)")
+
+
+@pytest.mark.parametrize("w, h", [(380, 120), (240, 120)])
+def test_short_cells_show_the_whole_setup_message(app, registry, tab, w, h):
+    """Home Assistant not connected: the setup message is the user's only guidance."""
+    core = registry.get("bin_day_core").server_module
+    with app.app_context():
+        core.save_config(
+            {"source": "calendar", "calendar": "calendar.bins", "schedule": [], "mappings": {}}
+        )
+    show(tab, w, h)
+    message = tab.locator(".notice p")
+    assert "Settings, Widgets, Home Assistant Core." in message.inner_text()
+    assert message.evaluate("el => el.scrollHeight <= el.clientHeight + 1"), (
+        "the message is cut off"
+    )
+    assert within(box(message), box(tab.locator(".cell").first))
+
+
+def test_black_and_white_icons_stay_visible_on_a_canvas(tab, bins):
+    """Canvas dashboards make --surface and --bg transparent on every cell."""
+    bins(LIVERPOOL)
+    show(tab, 640, 400, colours="mono")
+    tab.locator(".cell-content").first.evaluate(
+        "el => el.style.cssText += '--surface: transparent; --bg: transparent;'"
+        " + '--surface-gradient: transparent'"
+    )
+    clear = "rgba(0, 0, 0, 0)"
+    assert computed(tab, '.bin[data-mono="solid"] i', "color") != clear
+    assert computed(tab, '.bin[data-mono="hatched"] i', "backgroundColor") != clear
+
+
+def test_md_day_columns_keep_their_bins_on_one_line(tab, bins):
+    """A later day's column gets the bin widths left; its heading mustn't squeeze it."""
+    bins(BUSY_SECOND_DAY)
+    show(tab, 640, 400)
+    for column in tab.locator(".day-col").all():
+        tops = {round(box(item)[1]) for item in column.locator(":is(.bin-item, .more)").all()}
+        assert max(tops) - min(tops) <= 1, "a column's bins wrapped onto a second line"

@@ -193,15 +193,19 @@ function bin(stream, named = true) {
   return `<span class="bin-item"><span class="bin" ${monoAttr(stream)} role="img" aria-label="${name}" style="${colours}">${BIN_SVG}${iconHtml(stream)}</span>${named ? `<span class="bin-label">${name}</span>` : ""}</span>`;
 }
 
+// "+N" for the bins that don't fit. Its text is in a child, so the badge box
+// sizes in the same em as the chips or bins beside it.
+const moreBadge = (extra) => `<span class="more"><span>+${extra}</span></span>`;
+
 function bins(streams, slots, named = true) {
   const { shown, extra } = visibleChips(streams, slots);
-  const more = extra ? `<span class="more">+${extra}</span>` : "";
+  const more = extra ? moreBadge(extra) : "";
   return `<div class="bins">${shown.map((stream) => bin(stream, named)).join("")}${more}</div>`;
 }
 
 function chips(streams, slots, layout, style = "") {
   const { shown, extra } = visibleChips(streams, slots);
-  const more = extra ? `<span class="more">+${extra}</span>` : "";
+  const more = extra ? moreBadge(extra) : "";
   return `<div class="chips${layout}"${style}>${shown.map(chip).join("")}${more}</div>`;
 }
 

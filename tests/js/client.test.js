@@ -183,7 +183,7 @@ describe("render", () => {
   test("XS has room for three chips; four collapse to two and +N", () => {
     const four = draw("xs", { days: [{ ...MONDAY, streams: bins(4) }] });
     assert.equal(count(four, 'class="chip"'), 2);
-    assert.ok(four.includes('<span class="more">+2</span>'));
+    assert.ok(four.includes('<span class="more"><span>+2</span></span>'));
   });
 
   describe("SM busy mode: the upcoming day has four or more bins", () => {
@@ -205,7 +205,7 @@ describe("render", () => {
       assert.equal(count(html, 'class="day-stack"'), 0);
       assert.ok(html.includes("6 days"));
       assert.equal(count(html, 'class="chip"'), 4); // two for tomorrow, two for the busy day
-      assert.ok(html.includes('<span class="more">+3</span>'));
+      assert.ok(html.includes('<span class="more"><span>+3</span></span>'));
     });
 
     test("three bins a day keeps the two-row layout", () => {
@@ -229,7 +229,7 @@ describe("render", () => {
     test("thirteen or more end with +N", () => {
       const html = draw("sm", { days: [busyDay(14)] });
       assert.equal(count(html, 'class="chip"'), 11);
-      assert.ok(html.includes('<span class="more">+3</span>'));
+      assert.ok(html.includes('<span class="more"><span>+3</span></span>'));
     });
   });
 
@@ -298,7 +298,7 @@ describe("MD: one column per collection day", () => {
     const html = draw("md", { days: [on(1, bins(1)), on(6, bins(14))] });
     assert.equal(count(html, 'class="day-col"'), 2);
     assert.equal(count(html, 'class="bin"'), 5); // one tomorrow, four on day 6
-    assert.ok(html.includes('<span class="more">+10</span>'));
+    assert.ok(html.includes('<span class="more"><span>+10</span></span>'));
     assert.ok(html.includes("--bins:7;--cols:2")); // tomorrow claims 2, day 6 its 5 slots
   });
 
@@ -306,7 +306,7 @@ describe("MD: one column per collection day", () => {
     const html = draw("md", { days: [on(1, bins(4)), on(3, bins(3))] });
     assert.equal(count(html, 'class="day-col"'), 2);
     assert.equal(count(html, 'class="bin"'), 5);
-    assert.ok(html.includes('<span class="more">+2</span>'));
+    assert.ok(html.includes('<span class="more"><span>+2</span></span>'));
   });
 
   test("a busy upcoming day fills MD alone, with +N beyond twelve bins", () => {
@@ -316,7 +316,7 @@ describe("MD: one column per collection day", () => {
     assert.ok(!seven.includes('class="more"'));
     const fourteen = draw("md", { days: [on(1, bins(14))] });
     assert.equal(count(fourteen, 'class="bin"'), 11);
-    assert.ok(fourteen.includes('<span class="more">+3</span>'));
+    assert.ok(fourteen.includes('<span class="more"><span>+3</span></span>'));
   });
 
   test("each column claims at least two bins of width, for its heading", () => {
@@ -357,7 +357,7 @@ describe("LG: the upcoming day as hero, later days in a strip", () => {
     assert.ok(!five.includes('class="more"'));
     const thirteen = draw("lg", { days: [TOMORROW, on(6, bins(13))] });
     assert.equal(count(thirteen, 'class="chip"'), 11);
-    assert.ok(thirteen.includes('<span class="more">+2</span>'));
+    assert.ok(thirteen.includes('<span class="more"><span>+2</span></span>'));
   });
 
   test("a strip row with more than three bins drops its names, keeping chips and when", () => {
@@ -380,7 +380,7 @@ describe("LG: the upcoming day as hero, later days in a strip", () => {
   test("a busy hero shows up to twelve bins, then +N", () => {
     const html = draw("lg", { days: [on(1, bins(14))] });
     assert.equal(count(html, 'class="bin"'), 11);
-    assert.ok(html.includes('<span class="more">+3</span>'));
+    assert.ok(html.includes('<span class="more"><span>+3</span></span>'));
   });
 });
 
@@ -539,7 +539,7 @@ describe("small cells with wheelie bins", () => {
     assert.ok(!four.includes('class="more"'));
     const six = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(6) }] });
     assert.equal(count(six, 'class="bin"'), 3);
-    assert.ok(six.includes('<span class="more">+3</span>'));
+    assert.ok(six.includes('<span class="more"><span>+3</span></span>'));
   });
 
   test("the next collection's bins come first, then its count and date", () => {

@@ -1,7 +1,12 @@
-/* Bin Day widget. Sizes scale with the cell (cqmin), not media queries;
-   no motion. Text and surfaces use Spectra tokens. Bin fills come from
-   the data (a bin's --body and --lid, a chip's --fill, and the icon's
-   --ink); the outline, in the theme's text colour, keeps
+/* Bin Day widget. Every layout reads from the top left: Tesserae's title
+   bar, then the bins, then the days left and the date. Text takes
+   Tesserae's type tokens (--fs-*, em of the widget's base size), so styles
+   resize it as they do every widget's. Chips and bins are shapes, not text:
+   they size from the space the body has (cq units; the body is a size
+   container, so it measures what the title bar leaves), less the text that
+   shares it, worked out from the same tokens. No media queries, no motion.
+   Bin fills come from the data (a bin's --body and --lid, a chip's --fill,
+   and the icon's --ink); the outline, in the theme's text colour, keeps
    every bin visible against the surface. */
 
 .bin-day {
@@ -9,10 +14,13 @@
      dark ones, so it follows the theme's text colour. */
   --bin-outline: var(--text-primary);
   --chip: clamp(24px, 30cqmin, 96px);
+  /* the size of a day label beside or under chips */
+  --label-size: var(--fs-value);
 }
 
 .bin-day .w-body {
-  justify-content: space-between;
+  justify-content: flex-start;
+  container-type: size;
 }
 
 /* ---- chips: one rounded square per bin ---------------------------------- */
@@ -21,16 +29,6 @@
   align-items: center;
   gap: calc(var(--chip) * 0.15);
   min-width: 0;
-}
-
-.bin-day .chips.many {
-  --chip: clamp(18px, 22cqmin, 72px);
-}
-
-/* A full sm row shares its line with the day label, so it only shrinks as
-   far as the width needs: three chips plus "Tomorrow" across the cell. */
-.bin-day .day-row .chips.many {
-  --chip: clamp(18px, min(30cqmin, 14cqw), 72px);
 }
 
 .bin-day .chip,
@@ -66,38 +64,58 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- xs: the next collection, big count -------------------------------- */
+/* ---- the days left: Tesserae's big number (.stat-value, .unit) ---------- */
 .bin-day .count {
-  display: flex;
-  align-items: baseline;
-  gap: 0.25em;
-  font-weight: var(--fw-bold);
-  line-height: 1;
-}
-
-.bin-day .count-number {
-  font-size: clamp(28px, 36cqmin, 140px);
   font-variant-numeric: tabular-nums;
 }
 
-.bin-day .count-unit {
-  font-size: clamp(14px, 14cqmin, 56px);
+/* ---- xs: the next collection's chips, then its count ------------------- */
+/* --n chips across, and the height the count leaves */
+.bin-day.size-xs .chips {
+  --chip: clamp(
+    18px,
+    min(
+      calc(100cqw / (var(--n, 3) * 1.15)),
+      calc(100cqh - var(--xs-count, var(--fs-display)) * 1.05 - var(--space-3))
+    ),
+    96px
+  );
 }
 
-/* ---- sm (and md/lg for now): one row per collection day ---------------- */
+/* ---- sm: a row per collection day, its chips then its label ------------- */
 .bin-day .day-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: var(--space-3);
   min-height: 0;
+}
+
+/* two rows share the height */
+.bin-day .day-row .chips {
+  flex: 0 1 auto;
+  --chip: clamp(18px, calc((100cqh - var(--space-3)) / 2), 96px);
+}
+
+/* A full row (three chips) sets one size for both rows: what the width
+   leaves beside the longest label ("Tomorrow"). */
+.bin-day .day-row .chips.many {
+  --chip: clamp(
+    18px,
+    min(
+      calc((100cqh - var(--space-3)) / 2),
+      calc((100cqw - 4.6 * var(--label-size) - var(--space-3)) / 3.45)
+    ),
+    72px
+  );
 }
 
 .bin-day .day-label {
   flex: 0 1 auto;
   min-width: 0;
-  font-size: clamp(14px, min(15cqmin, 8cqw), 56px);
+  font-size: var(--label-size);
   font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -109,10 +127,6 @@
   flex-shrink: 0;
 }
 
-.bin-day .day-row .chips {
-  flex: 0 1 auto;
-}
-
 .bin-day .day-row :is(.chip, .more) {
   flex-shrink: 1;
   height: auto;
@@ -121,21 +135,22 @@
   border-radius: 20%;
 }
 
-/* ---- sm busy mode: the upcoming day, its label above a 6 by 2 grid ----- */
+/* ---- sm busy mode: the upcoming day, a 6 by 2 grid then its label ------- */
 .bin-day .day-stack {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-2);
   min-height: 0;
 }
 
 .bin-day .chips.grid {
   /* As big as fits: a line of --per-line chips (each gap is 0.15 of a chip)
-     across the width the padding leaves, and --lines lines in half the
-     height (the label and padding take the rest). client.js sets both. */
+     across the width, and --lines lines in the height the label leaves.
+     client.js sets both. */
   --chip: min(
-    calc(88cqw / (var(--per-line, 6) * 1.15 - 0.15)),
-    calc(50cqh / var(--lines, 2)),
+    calc(100cqw / (var(--per-line, 6) * 1.15 - 0.15)),
+    calc((100cqh - var(--label-size) * 1.05 - var(--space-2)) / (var(--lines, 2) * 1.15)),
     96px
   );
   flex-wrap: wrap;
@@ -143,7 +158,13 @@
   max-width: calc(var(--chip) * 6.75); /* six chips and five gaps a line */
 }
 
-/* ---- wheelie bins (md, lg) ---------------------------------------------- */
+/* ---- wheelie bins ------------------------------------------------------- */
+/* A bin is 4/3 as tall as it is wide; with its name (--fs-label) under it a
+   bin item is about 1.39 bin widths plus a line of label text. */
+.bin-day {
+  --name-line: calc(var(--fs-label) * 1.35);
+}
+
 .bin-day .bins {
   display: flex;
   flex-wrap: wrap;
@@ -208,10 +229,13 @@
   color: var(--ink);
 }
 
+/* Tesserae's label size, unless the bin is too narrow to carry it: then a
+   fifth of the bin's width (names belong to the drawing, like its icon). */
 .bin-day .bin-label {
   max-width: 100%;
-  font-size: clamp(11px, calc(var(--bin) * 0.2), 30px);
+  font-size: min(var(--fs-label), max(11px, calc(var(--bin) * 0.2)));
   font-weight: var(--fw-bold);
+  line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -224,99 +248,45 @@
   font-size: calc(var(--bin) * 0.3);
 }
 
-/* ---- xs and sm with wheelie bins: the next collection, bins first ------- */
-/* Colour, then the count, then names, then the date: the bins get what the
-   count leaves, and the date is the first thing a short cell drops.
-   client.js puts the count beside the bins or above them (.beside, .above),
-   whichever leaves them bigger, and drops the names (.no-names) when the
-   bins are too narrow to carry them. */
-.bin-day .next {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-height: 0;
-}
-
-.bin-day .next.beside {
-  flex-direction: row;
-  align-items: center;
-}
-
-.bin-day .next-head {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15em;
-}
-
-/* Above the bins, the count and date share a line while they fit. */
-.bin-day .next.above .next-head {
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 0.6em;
-}
-
-/* Beside the bins, the head is only as wide as its longest word: the number
-   above its unit, the date over two lines. */
-.bin-day .next.beside .next-head {
-  width: min-content;
-}
-
-.bin-day .next.beside .count {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
-}
-
-.bin-day .next.beside .next-date {
-  white-space: normal;
-}
-
-/* The count gives way to the bins: no bigger than a bin when several share
-   the width. */
-.bin-day .next .count-number {
-  font-size: clamp(18px, min(22cqmin, calc(70cqw / var(--bins))), 96px);
-}
-
-.bin-day .next .count-unit {
-  font-size: clamp(12px, 9cqmin, 40px);
-}
-
-.bin-day .next .count-unit:only-child {
-  font-size: clamp(14px, 13cqmin, 56px); /* "Today", on its own */
-}
-
-.bin-day .next-date {
-  font-size: clamp(11px, 7cqmin, 28px);
+.bin-day :is(.day-date, .next-date) {
+  font-size: var(--fs-label);
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
-/* The bins' area is a size container: they size from what it has across
-   and down. A named bin is its body (4/3 of its width) and a name of at
-   least 11px. */
-.bin-day .next-bins {
+/* ---- xs and sm with wheelie bins: the next collection, then its count --- */
+/* Colour, then the count, then names, then the date: the bins take what the
+   count leaves, and a short cell drops the date first, then the names, and
+   shrinks the count. client.js drops the names (.no-names) when the bins
+   are too narrow to carry them. .next is a size container: the bins size
+   from it, less --head, the count and date under them. */
+.bin-day .next {
   flex: 1 1 0;
-  align-self: stretch;
-  min-width: 0;
   min-height: 0;
   container-type: size;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  --count-size: var(--fs-value);
+  --head: calc(var(--count-size) * 1.05 + var(--name-line) + var(--space-1));
 }
 
-.bin-day .next-bins .bins {
+.bin-day .next .bins {
+  flex-wrap: nowrap;
+  max-width: none; /* one line, so a name may be wider than its bin */
   --bin: min(
     calc(100cqw / (var(--bins) * 1.25)),
-    calc((100cqh - 15px) / 1.4),
-    calc(100cqh / 1.65),
+    calc((100cqh - var(--head) - var(--space-2) - var(--name-line)) / 1.4),
     220px
   );
-  flex-wrap: nowrap;
-  justify-content: center;
+}
+
+/* a name may use the width beside its bin, up to the bin's share of the cell */
+.bin-day .next .bin-item {
+  width: auto;
+  min-width: calc(var(--bin) * 1.15);
+  max-width: calc(100cqw / var(--bins));
 }
 
 .bin-day .next.no-names .bin-label {
@@ -324,26 +294,69 @@
 }
 
 .bin-day .next.no-names .bins {
-  --bin: min(calc(100cqw / (var(--bins) * 1.25)), calc(100cqh / 1.4), 220px);
+  --bin: min(
+    calc(100cqw / (var(--bins) * 1.25)),
+    calc((100cqh - var(--head) - var(--space-2)) / 1.34),
+    220px
+  );
 }
 
-@container (max-height: 130px) {
-  .bin-day .next.above .next-date {
+.bin-day .next-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.bin-day .next .stat-value {
+  font-size: var(--count-size);
+}
+
+/* a short body: the date goes first */
+@container (max-height: 120px) {
+  .bin-day .next {
+    --head: calc(var(--count-size) * 1.05);
+  }
+
+  .bin-day .next .next-date {
     display: none;
   }
 }
 
-/* ---- md: a column per collection day ------------------------------------ */
+/* a very short body: then the names, and the count shrinks */
+@container (max-height: 90px) {
+  .bin-day .next {
+    --count-size: var(--fs-lead);
+  }
+
+  .bin-day .next .bin-label {
+    display: none;
+  }
+
+  .bin-day .next .bins {
+    --bin: min(
+      calc(100cqw / (var(--bins) * 1.25)),
+      calc((100cqh - var(--head) - var(--space-2)) / 1.34),
+      220px
+    );
+  }
+}
+
+/* ---- md: a column per collection day, its bins then its day ------------- */
 .bin-day .day-cols {
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
   display: flex;
   gap: 3cqw;
-  min-height: 0;
+  --head: calc(var(--fs-lead) * 1.05 + var(--name-line) + var(--space-1));
   /* the bins across every column share the width (columns add a gap and a
-     rule); their heights, with names, share what the headings leave */
+     rule); their heights, with names, share what the day labels leave */
+}
+
+.bin-day .day-cols .bins {
   --bin: min(
-    calc((88cqw - (var(--cols) - 1) * 6cqw) / (var(--bins) * 1.25)),
-    calc(58cqh / var(--lines) / 1.7),
+    calc((100cqw - (var(--cols) - 1) * 6cqw) / (var(--bins) * 1.25)),
+    calc((100cqh - var(--head) - var(--space-2) - var(--lines) * var(--name-line)) / (var(--lines) * 1.5 - 0.1)),
     160px
   );
 }
@@ -351,6 +364,7 @@
 .bin-day .day-col {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--space-2);
   min-width: 0;
 }
@@ -363,40 +377,31 @@
 .bin-day .day-head {
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  gap: var(--space-1);
 }
 
 .bin-day.size-md .day-label {
-  font-size: clamp(14px, min(9cqmin, 4.5cqw), 44px);
+  font-size: var(--fs-lead);
 }
 
-.bin-day .day-date {
-  font-size: clamp(11px, min(5.5cqmin, 3.5cqw), 28px);
-  color: var(--text-secondary);
-}
-
-/* ---- lg: the upcoming day as hero, later days in a strip --------------- */
+/* ---- lg: the upcoming day's bins then its day, later days at the bottom -- */
+/* The hero takes the height the strip leaves and is a size container: its
+   bins size from it, less the label and date under them. */
 .bin-day .hero {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-height: 0;
-}
-
-/* The hero's bins get whatever the headline and the strip leave, whatever
-   the cell's shape: this area is a size container, and the bins inside size
-   from it (a line of bins with names is about 1.75 bin widths tall). */
-.bin-day .hero-bins {
   flex: 1 1 0;
   min-height: 0;
   container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  --head: calc(var(--fs-display) * 1.05 + var(--fs-lead) * 1.35 + var(--space-1));
 }
 
-.bin-day .hero-bins .bins {
+.bin-day .hero .bins {
   --bin: min(
     calc(100cqw / (var(--bins) * 1.25)),
-    calc(100cqh / (var(--lines) * 1.75)),
+    calc((100cqh - var(--head) - var(--space-3) - var(--lines) * var(--name-line)) / (var(--lines) * 1.5 - 0.1)),
     220px
   );
 }
@@ -404,23 +409,23 @@
 .bin-day .hero-head {
   display: flex;
   flex-direction: column;
-  gap: 0.15em;
+  gap: var(--space-1);
 }
 
 .bin-day .hero-label {
-  font-size: clamp(28px, min(14cqh, 10cqw), 120px);
-  font-weight: var(--fw-bold);
-  line-height: 1;
+  font-size: var(--fs-display);
+  font-weight: var(--fw-black);
+  line-height: var(--lh-tight);
 }
 
 .bin-day .hero-date {
-  font-size: clamp(14px, min(5cqh, 3.5cqw), 40px);
+  font-size: var(--fs-lead);
   color: var(--text-secondary);
 }
 
 .bin-day .strip {
   /* sized so twelve chips and the "when" still fit a narrow lg cell */
-  --chip: clamp(18px, min(8cqh, 4.5cqw), 56px);
+  --chip: clamp(18px, min(10cqh, 4.5cqw), 56px);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -441,7 +446,7 @@
 
 .bin-day .strip-names,
 .bin-day .strip-when {
-  font-size: clamp(13px, min(4.5cqh, 3cqw), 34px);
+  font-size: var(--fs-body);
   font-weight: var(--fw-bold);
   white-space: nowrap;
 }
@@ -570,28 +575,30 @@
 
 /* ---- empty state and error tile ---------------------------------------- */
 .bin-day .notice {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 0.5em;
   text-align: left;
 }
 
 .bin-day .notice i {
   flex: 0 0 auto;
-  font-size: clamp(24px, 22cqmin, 96px);
+  font-size: var(--icon-lg);
   color: var(--icon);
 }
 
 .bin-day .notice p {
   margin: 0;
-  font-size: clamp(14px, 12cqmin, 40px);
+  min-width: 0;
+  overflow-wrap: anywhere; /* a long calendar id has no spaces to break at */
+  font-size: var(--fs-lead);
   font-weight: var(--fw-bold);
 }
 
 .bin-day .notice.is-error p {
-  font-size: clamp(12px, 7cqmin, 20px);
+  font-size: var(--fs-body);
   font-weight: var(--fw-medium);
 }
 
@@ -604,26 +611,31 @@
 }
 
 /* ---- narrow cells ------------------------------------------------------- */
-/* Square and tall sm cells: each row puts its day label above its chips, so
-   neither squeezes the other. */
+/* Square and tall sm bodies: each row puts its chips above its day label,
+   so neither squeezes the other. */
 @container (max-aspect-ratio: 4/3) {
-  .bin-day.size-sm .w-body {
-    justify-content: space-evenly;
-  }
-
   .bin-day.size-sm .day-row {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: flex-start;
-    justify-content: center;
     gap: var(--space-1);
   }
 
-  .bin-day.size-sm .day-row .chips {
-    --chip: clamp(20px, 24cqmin, 88px);
-  }
-
+  .bin-day.size-sm .day-row .chips,
   .bin-day.size-sm .day-row .chips.many {
-    --chip: clamp(18px, 18cqmin, 72px);
+    --chip: clamp(
+      18px,
+      min(calc((100cqh - 2.1 * var(--label-size) - var(--space-4)) / 2), calc(100cqw / 3.45)),
+      88px
+    );
+  }
+}
+
+/* Narrow bodies: day labels take the smaller lead size, and the XS count is
+   Tesserae's compact 2.4em (spectra-widgets.css sets .stat-value so there). */
+@container (max-width: 240px) {
+  .bin-day .w-body {
+    --label-size: var(--fs-lead);
+    --xs-count: 2.4em;
   }
 }
 
@@ -631,7 +643,7 @@
 @container (max-width: 280px) {
   .bin-day .notice {
     flex-direction: column;
-    text-align: center;
+    align-items: flex-start;
     gap: 0.3em;
   }
 

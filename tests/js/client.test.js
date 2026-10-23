@@ -121,12 +121,19 @@ describe("render", () => {
     });
   }
 
-  test("XS shows only the next collection day with a big count", () => {
+  test("XS shows only the next collection day: its chips, then a big count", () => {
     const html = draw("xs", { days: [TOMORROW, MONDAY] });
     assert.equal(count(html, 'class="chip"'), 2);
-    assert.ok(html.includes('<span class="count-number">1</span>'));
-    assert.ok(html.includes('<span class="count-unit">day</span>'));
+    assert.ok(html.includes('<div class="stat-value count">1<span class="unit">day</span></div>'));
+    assert.ok(html.indexOf('class="chip"') < html.indexOf('class="stat-value count"'));
     assert.ok(!html.includes("Recycling"));
+  });
+
+  test("each SM row has its chips, then its label", () => {
+    const html = draw("sm", { days: [TOMORROW, MONDAY] });
+    for (const row of html.split('class="day-row"').slice(1)) {
+      assert.ok(row.indexOf('class="chip"') < row.indexOf('class="day-label"'));
+    }
   });
 
   test("SM shows one row per day, at most two, with day labels", () => {
@@ -182,11 +189,11 @@ describe("render", () => {
   describe("SM busy mode: the upcoming day has four or more bins", () => {
     const busyDay = (n) => ({ ...TOMORROW, streams: bins(n) });
 
-    test("shows only the upcoming day, its label above every bin", () => {
+    test("shows only the upcoming day: every bin, then its label", () => {
       const html = draw("sm", { days: [busyDay(5), MONDAY] });
       assert.equal(count(html, 'class="day-stack"'), 1);
       assert.equal(count(html, 'class="day-row"'), 0);
-      assert.ok(html.indexOf("Tomorrow") < html.indexOf('class="chip"'));
+      assert.ok(html.lastIndexOf('class="chip"') < html.indexOf('class="day-label">Tomorrow<'));
       assert.equal(count(html, 'class="chip"'), 5);
       assert.ok(!html.includes("6 days"));
       assert.ok(!html.includes('class="more"'));
@@ -265,7 +272,7 @@ describe("dates", () => {
 });
 
 describe("MD: one column per collection day", () => {
-  test("each column has the count and short date above its labelled bins", () => {
+  test("each column has its labelled bins, then the count and short date", () => {
     const html = draw("md", { days: [TOMORROW, MONDAY] });
     assert.equal(count(html, 'class="day-col"'), 2);
     for (const text of ["Tomorrow", "Wed 7 Oct", "6 days", "Mon 12 Oct"]) {
@@ -273,7 +280,7 @@ describe("MD: one column per collection day", () => {
     }
     assert.equal(count(html, 'class="bin"'), 3);
     assert.equal(count(html, 'class="bin-label"'), 3);
-    assert.ok(html.indexOf("Wed 7 Oct") < html.indexOf('class="bin-label">Refuse<'));
+    assert.ok(html.indexOf('class="bin-label">Green<') < html.indexOf("Wed 7 Oct"));
   });
 
   test("at most three days are shown", () => {
@@ -322,6 +329,12 @@ describe("MD: one column per collection day", () => {
 });
 
 describe("LG: the upcoming day as hero, later days in a strip", () => {
+  test("the hero's bins come first, then its label and date; later days last", () => {
+    const html = draw("lg", { days: [TOMORROW, MONDAY] });
+    assert.ok(html.indexOf('class="hero-bins"') < html.indexOf('class="hero-head"'));
+    assert.ok(html.indexOf('class="hero-head"') < html.indexOf('class="strip"'));
+  });
+
   test("the hero has the big label, full date and labelled bins", () => {
     const html = draw("lg", { days: [TOMORROW, MONDAY] });
     assert.ok(html.includes('class="hero-label">Tomorrow<'));
@@ -485,15 +498,13 @@ describe("small cells with wheelie bins", () => {
     render(shadow, { cell: { size, w, h, options: { small_cells: "bins" } }, data, locale: "en" });
     return shadow.innerHTML;
   }
-  const arrangement = (html) => html.match(/class="next (beside|above)/)?.[1];
 
   for (const size of ["xs", "sm"]) {
     test(`${size} draws the next collection's bins with its count and date`, () => {
       const html = drawBins(size, { days: [TOMORROW, MONDAY] });
       assert.equal(count(html, 'class="bin"'), 2);
       assert.equal(count(html, 'class="chip"'), 0);
-      assert.ok(html.includes('<span class="count-number">1</span>'));
-      assert.ok(html.includes('<span class="count-unit">day</span>'));
+      assert.ok(html.includes('<div class="stat-value count">1<span class="unit">day</span></div>'));
       // the day and month stay together if the date wraps
       assert.ok(html.includes('<span class="next-date">Wed 7\u00a0Oct</span>'));
       assert.ok(html.includes('class="bin-label">Refuse<'));
@@ -504,8 +515,7 @@ describe("small cells with wheelie bins", () => {
   test("a collection today says Today, with no number", () => {
     const html = drawBins("xs", { days: [{ ...TOMORROW, days_until: 0 }] });
     assert.equal(count(html, 'class="bin"'), 2);
-    assert.ok(html.includes('<span class="count-unit">Today</span>'));
-    assert.ok(!html.includes("count-number"));
+    assert.ok(html.includes('<div class="stat-value count">Today</div>'));
   });
 
   test("small cells show chips unless wheelie bins are chosen", () => {
@@ -532,24 +542,19 @@ describe("small cells with wheelie bins", () => {
     assert.ok(six.includes('<span class="more">+3</span>'));
   });
 
-  test("the count goes beside the bins or above them, whichever leaves the bins bigger", () => {
-    const one = { days: [{ ...TOMORROW, streams: [REFUSE] }] };
-    const two = { days: [TOMORROW] };
-    assert.equal(arrangement(drawBins("sm", one, { w: 205, h: 165 })), "beside");
-    assert.equal(arrangement(drawBins("xs", one, { w: 180, h: 180 })), "beside");
-    assert.equal(arrangement(drawBins("sm", two, { w: 205, h: 165 })), "above");
-    assert.equal(arrangement(drawBins("sm", one, { w: 150, h: 250 })), "above");
-    assert.equal(arrangement(drawBins("sm", two, { w: 380, h: 120 })), "beside");
-    assert.equal(arrangement(drawBins("sm", one)), "above");
+  test("the next collection's bins come first, then its count and date", () => {
+    const html = drawBins("sm", { days: [TOMORROW] }, { w: 205, h: 165 });
+    assert.ok(html.lastIndexOf('class="bin-label"') < html.indexOf('class="next-head"'));
+    assert.ok(html.indexOf('class="stat-value count"') < html.indexOf('class="next-date"'));
   });
 
   test("names drop when the bins are too narrow to carry them", () => {
     const four = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(4) }] }, { w: 205, h: 165 });
-    assert.ok(/class="next above no-names"/.test(four));
+    assert.ok(/class="next no-names"/.test(four));
     const three = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(3) }] }, { w: 205, h: 165 });
-    assert.ok(/class="next above no-names"/.test(three));
+    assert.ok(/class="next no-names"/.test(three));
     const roomy = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(3) }] }, { w: 300, h: 200 });
-    assert.ok(/class="next above"/.test(roomy));
+    assert.ok(/class="next"/.test(roomy));
   });
 
   test("the bins carry their colours and black-and-white fills as in MD", () => {

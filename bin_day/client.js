@@ -2,22 +2,25 @@
 // payload (ctx.data = {days: [{date, days_until, streams}], next_change_at}).
 //
 // Layout follows ctx.cell.size:
+// Every layout reads from the top left: Tesserae's title bar, then the bins,
+// then the days left and the date (the owner's order).
 //   xs, sm  with the Small cells show option on Wheelie bins: the next
 //           collection day, its bins drawn as large as fit (up to
-//           SMALL_SLOTS), the count and short date beside or above them,
-//           whichever leaves the bins bigger. Names drop when too narrow.
-//   xs      the next collection day: its bins as chips, a big day count
+//           SMALL_SLOTS), then the count and short date. Names drop when the
+//           bins are too narrow for them.
+//   xs      the next collection day: its bins as chips, then a big day count
 //   sm      one row per collection day (at most two): chips, then the day label.
 //           A row has ROW_SLOTS chips, the last becoming "+N" if more. When the
 //           upcoming day has BUSY_FROM or more bins it gets the whole cell
-//           instead: its label above a grid of up to GRID_SLOTS chips.
+//           instead: a grid of up to GRID_SLOTS chips, then its label.
 //   md      one column per collection day (up to MD_DAYS, MD_BINS bins in
-//           all): count and short date, then a wheelie bin per collection with
-//           its name. A later day that doesn't fit gets the slots left, ending
-//           "+N". A busier upcoming day fills md alone.
-//   lg      the upcoming day as hero (big count, full date, large named bins),
-//           later days as a strip below: a chip for every bin, then names
-//           (only for a few bins, and they give way first), then when
+//           all): a wheelie bin per collection with its name, then the count
+//           and short date. A later day that doesn't fit gets the slots left,
+//           ending "+N". A busier upcoming day fills md alone.
+//   lg      the upcoming day as hero (large named bins, then the count and
+//           full date), later days as a strip at the bottom: a chip for every
+//           bin, then names (only for a few bins, and they give way first),
+//           then when
 // Bins and chips show up to their slot count, the last slot becoming "+N".
 // Black & white: each bin takes the fill the server chose (solid, hatched,
 // white, dotted or cross-hatched; refuse solid, garden hatched, recycling
@@ -44,9 +47,6 @@ const HERO_SLOTS = 12; // bins for one busy day (md) or the lg hero, in two line
 const STRIP_DAYS = 3; // later days in the lg strip
 const STRIP_NAMED_MAX = 3; // bins in a strip row that still get their names
 const SMALL_SLOTS = 4; // wheelie bins in a small cell: four, or three and +N
-const HEAD_SHARE = 0.35; // the part of a small cell's width or height the count takes
-const BIN_PITCH = 1.25; // a bin and its gap across, in bin widths
-const BIN_NAMED_TALL = 1.75; // a bin with its name beneath, in bin widths
 const NAME_MIN = 72; // px of the cell's width each bin needs to carry its name
 const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
 const ICON_NAME = /^[a-z0-9-]+$/;
@@ -205,7 +205,9 @@ function chips(streams, slots, layout, style = "") {
 
 // Chips shrink when a row is full; ``small`` covers every row in the cell so
 // the rows keep matching sizes.
-const rowChips = (streams, small) => chips(streams, ROW_SLOTS, small ? " many" : "");
+// --n tells client.css how many chips share the row's width.
+const rowChips = (streams, small) =>
+  chips(streams, ROW_SLOTS, small ? " many" : "", ` style="--n:${Math.min(streams.length, ROW_SLOTS)}"`);
 
 // The busy grid passes its shape to client.css, so a single line of chips
 // can grow to use the height a second line would have taken.
@@ -237,35 +239,35 @@ function emptyBody(t) {
   </div>`;
 }
 
-function xsBody(day, t) {
-  const { number, unit } = xsCount(day.days_until, t);
-  const big = number ? `<span class="count-number">${escapeHtml(number)}</span>` : "";
-  return `${rowChips(day.streams, day.streams.length >= ROW_SLOTS)}<div class="count">${big}<span class="count-unit">${escapeHtml(unit)}</span></div>`;
+// The days left as Tesserae's big number: the number large, its unit smaller
+// (.stat-value and .unit in spectra-widgets.css). Today is the value itself.
+function countHtml(daysUntil, t) {
+  const { number, unit } = xsCount(daysUntil, t);
+  const value = number ? `${escapeHtml(number)}<span class="unit">${escapeHtml(unit)}</span>` : escapeHtml(unit);
+  return `<div class="stat-value count">${value}</div>`;
 }
 
-// The next collection in a small cell, bins first. The count sits beside the
-// bins or above them, whichever leaves the bins bigger in a w by h cell; with
-// no size to go on, above.
-function nextBody(day, { w, h }, locale, t) {
+function xsBody(day, t) {
+  return `${rowChips(day.streams, day.streams.length >= ROW_SLOTS)}${countHtml(day.days_until, t)}`;
+}
+
+// The next collection in a small cell: its bins, then the count and date.
+// Names drop when the cell (w wide) gives each bin less than NAME_MIN.
+function nextBody(day, { w }, locale, t) {
   const slots = Math.min(day.streams.length, SMALL_SLOTS);
-  const binFor = (width, height) => Math.min(width / (slots * BIN_PITCH), height / BIN_NAMED_TALL);
-  const known = w > 0 && h > 0;
-  const beside = known && binFor(w * (1 - HEAD_SHARE), h) > binFor(w, h * (1 - HEAD_SHARE));
-  const named = !known || (beside ? w * (1 - HEAD_SHARE) : w) / slots >= NAME_MIN;
-  const { number, unit } = xsCount(day.days_until, t);
-  const big = number ? `<span class="count-number">${escapeHtml(number)}</span>` : "";
-  // Beside the bins the date may wrap; its day and month stay together.
-  const date = shortDate(day.date, locale).replace(/ (?=\S+$)/, " ");
-  return `<div class="next ${beside ? "beside" : "above"}${named ? "" : " no-names"}" style="--bins:${slots}">
-    <div class="next-head"><div class="count">${big}<span class="count-unit">${escapeHtml(unit)}</span></div><span class="next-date">${escapeHtml(date)}</span></div>
-    <div class="next-bins">${bins(day.streams, SMALL_SLOTS)}</div>
+  const named = !(w > 0) || w / slots >= NAME_MIN;
+  // Should the date wrap, its day and month stay together.
+  const date = shortDate(day.date, locale).replace(/ (?=\S+$)/, "\u00a0");
+  return `<div class="next${named ? "" : " no-names"}" style="--bins:${slots}">
+    ${bins(day.streams, SMALL_SLOTS)}
+    <div class="next-head">${countHtml(day.days_until, t)}<span class="next-date">${escapeHtml(date)}</span></div>
   </div>`;
 }
 
 function smBody(days, t) {
   const [upcoming] = days;
   if (upcoming.streams.length >= BUSY_FROM) {
-    return `<div class="day-stack"><span class="day-label">${escapeHtml(dayLabel(upcoming.days_until, t))}</span>${gridChips(upcoming.streams)}</div>`;
+    return `<div class="day-stack">${gridChips(upcoming.streams)}<span class="day-label">${escapeHtml(dayLabel(upcoming.days_until, t))}</span></div>`;
   }
   const rows = days.slice(0, MAX_ROWS);
   const small = rows.some((day) => day.streams.length >= ROW_SLOTS);
@@ -279,8 +281,8 @@ function smBody(days, t) {
 
 function dayColumn(day, locale, slots, t) {
   return `<div class="day-col">
-    <div class="day-head"><span class="day-label">${escapeHtml(dayLabel(day.days_until, t))}</span><span class="day-date">${escapeHtml(shortDate(day.date, locale))}</span></div>
     ${bins(day.streams, slots)}
+    <div class="day-head"><span class="day-label">${escapeHtml(dayLabel(day.days_until, t))}</span><span class="day-date">${escapeHtml(shortDate(day.date, locale))}</span></div>
   </div>`;
 }
 
@@ -327,8 +329,8 @@ function lgBody(days, locale, t) {
   const strip = later.slice(0, STRIP_DAYS);
   const shape = `--bins:${Math.ceil(used / lines)};--lines:${lines};--strip:${strip.length}`;
   return `<div class="hero" style="${shape}">
-    <div class="hero-head"><span class="hero-label">${escapeHtml(dayLabel(hero.days_until, t))}</span><span class="hero-date">${escapeHtml(longDate(hero.date, locale))}</span></div>
     <div class="hero-bins">${bins(hero.streams, HERO_SLOTS)}</div>
+    <div class="hero-head"><span class="hero-label">${escapeHtml(dayLabel(hero.days_until, t))}</span><span class="hero-date">${escapeHtml(longDate(hero.date, locale))}</span></div>
   </div>${strip.length ? `<div class="strip">${strip.map((day) => stripRow(day, locale, t)).join("")}</div>` : ""}`;
 }
 

@@ -45,6 +45,8 @@
 }
 
 .bin-day .chip {
+  /* sizes its icon from the width it gets, should a row narrow it */
+  container-type: inline-size;
   background: var(--fill);
   color: var(--ink);
   outline: max(2px, calc(var(--chip) * 0.05)) solid var(--bin-outline);
@@ -52,7 +54,7 @@
 }
 
 .bin-day .chip i {
-  font-size: calc(var(--chip) * 0.62);
+  font-size: 62cqi;
   line-height: 1;
 }
 
@@ -99,6 +101,24 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Beside its chips, the label stays whole: when the row is short of width
+   the chips narrow instead, staying square. */
+.bin-day .day-row .day-label {
+  flex-shrink: 0;
+}
+
+.bin-day .day-row .chips {
+  flex: 0 1 auto;
+}
+
+.bin-day .day-row :is(.chip, .more) {
+  flex-shrink: 1;
+  height: auto;
+  aspect-ratio: 1;
+  min-width: 18px;
+  border-radius: 20%;
 }
 
 /* ---- sm busy mode: the upcoming day, its label above a 6 by 2 grid ----- */
@@ -202,6 +222,115 @@
   height: calc(var(--bin) * 4 / 3);
   border-radius: calc(var(--bin) * 0.12);
   font-size: calc(var(--bin) * 0.3);
+}
+
+/* ---- xs and sm with wheelie bins: the next collection, bins first ------- */
+/* Colour, then the count, then names, then the date: the bins get what the
+   count leaves, and the date is the first thing a short cell drops.
+   client.js puts the count beside the bins or above them (.beside, .above),
+   whichever leaves them bigger, and drops the names (.no-names) when the
+   bins are too narrow to carry them. */
+.bin-day .next {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.bin-day .next.beside {
+  flex-direction: row;
+  align-items: center;
+}
+
+.bin-day .next-head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+/* Above the bins, the count and date share a line while they fit. */
+.bin-day .next.above .next-head {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.6em;
+}
+
+/* Beside the bins, the head is only as wide as its longest word: the number
+   above its unit, the date over two lines. */
+.bin-day .next.beside .next-head {
+  width: min-content;
+}
+
+.bin-day .next.beside .count {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.bin-day .next.beside .next-date {
+  white-space: normal;
+}
+
+/* The count gives way to the bins: no bigger than a bin when several share
+   the width. */
+.bin-day .next .count-number {
+  font-size: clamp(18px, min(22cqmin, calc(70cqw / var(--bins))), 96px);
+}
+
+.bin-day .next .count-unit {
+  font-size: clamp(12px, 9cqmin, 40px);
+}
+
+.bin-day .next .count-unit:only-child {
+  font-size: clamp(14px, 13cqmin, 56px); /* "Today", on its own */
+}
+
+.bin-day .next-date {
+  font-size: clamp(11px, 7cqmin, 28px);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* The bins' area is a size container: they size from what it has across
+   and down. A named bin is its body (4/3 of its width) and a name of at
+   least 11px. */
+.bin-day .next-bins {
+  flex: 1 1 0;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bin-day .next-bins .bins {
+  --bin: min(
+    calc(100cqw / (var(--bins) * 1.25)),
+    calc((100cqh - 15px) / 1.4),
+    calc(100cqh / 1.65),
+    220px
+  );
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+.bin-day .next.no-names .bin-label {
+  display: none;
+}
+
+.bin-day .next.no-names .bins {
+  --bin: min(calc(100cqw / (var(--bins) * 1.25)), calc(100cqh / 1.4), 220px);
+}
+
+@container (max-height: 130px) {
+  .bin-day .next.above .next-date {
+    display: none;
+  }
 }
 
 /* ---- md: a column per collection day ------------------------------------ */
@@ -425,7 +554,7 @@
 }
 
 .bin-day.mono .chip:is([data-mono="hatched"], [data-mono="dotted"], [data-mono="crosshatch"]) i {
-  font-size: calc(var(--chip) * 0.46); /* the disc is about 70% of the chip */
+  font-size: 46cqi; /* the disc is about 70% of the chip */
 }
 
 .bin-day.mono .bin:is([data-mono="hatched"], [data-mono="dotted"], [data-mono="crosshatch"]) i {

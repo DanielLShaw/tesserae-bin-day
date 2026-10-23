@@ -43,6 +43,12 @@ def test_every_cutoff_choice_is_honoured_and_default_is_ten():
     assert [parse_cutoff(v).strftime("%H:%M") for v in values] == values
 
 
+def test_small_cells_offer_chips_by_default_or_the_wheelie_bins_client_js_draws():
+    option = cell_option("small_cells")
+    assert option["default"] == "chips"
+    assert [c["value"] for c in option["choices"]] == ["chips", "bins"]
+
+
 def test_widget_offers_the_daily_refresh(registry):
     from app.scheduled_refresh import _supported
 

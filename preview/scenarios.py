@@ -65,6 +65,7 @@ class Scenario:
     expect: object
     cutoff: str = "10:00"
     colours: str = "auto"
+    small_cells: str = "chips"
     source: str = "schedule"
     theme: str | None = None  # render in this theme whatever the run's
     docs: tuple = ()
@@ -75,7 +76,7 @@ class Scenario:
 
     @property
     def options(self):
-        return {"cutoff": self.cutoff, "colours": self.colours}
+        return {"cutoff": self.cutoff, "colours": self.colours, "small_cells": self.small_cells}
 
 
 SCENARIOS = [
@@ -137,6 +138,34 @@ SCENARIOS = [
         ],
         _at(6, 8),
         [(1, ["trash", "recycle", "leaf", "fork-knife", "wine"])],
+    ),
+    Scenario(
+        "wheelie-small",
+        "Small cells show Wheelie bins: XS and SM draw tomorrow's bins, not chips.",
+        LIVERPOOL_SET_UP,
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        small_cells="bins",
+        docs=("xs", "sm"),
+    ),
+    Scenario(
+        "wheelie-small-one",
+        "Small cells show Wheelie bins, one bin due: the count beside a large bin.",
+        [_stream("Rubbish", "2026-10-07", 2, body_colour="purple")],
+        _at(6, 8),
+        [(1, ["trash"])],
+        small_cells="bins",
+    ),
+    Scenario(
+        "wheelie-small-busy",
+        "Small cells show Wheelie bins, five bins due: three bins and +2.",
+        [
+            _stream(label, "2026-10-07", 1)
+            for label in ("Refuse", "Recycling", "Garden waste", "Food waste", "Glass")
+        ],
+        _at(6, 8),
+        [(1, ["trash", "recycle", "leaf", "fork-knife", "wine"])],
+        small_cells="bins",
     ),
     Scenario(
         "busy-second-day",

@@ -163,6 +163,23 @@
         }
       ],
       "help": "Colour suits screens. Colour for e-ink uses the exact inks of colour e-ink panels such as the reTerminal E1002, so bins print as solid ink. Black & white draws each bin solid, outlined or patterned, for mono panels. Auto uses Colour, or Black & white on black and white themes such as Paper and Newsprint."
+    },
+    {
+      "name": "small_cells",
+      "type": "select",
+      "label": "Small cells show",
+      "default": "chips",
+      "choices": [
+        {
+          "value": "chips",
+          "label": "Chips"
+        },
+        {
+          "value": "bins",
+          "label": "Wheelie bins"
+        }
+      ],
+      "help": "For XS and SM cells. Chips show the next two collection days, each bin as a coloured square. Wheelie bins show only the next collection, its bins drawn as large as the cell allows. MD and LG cells always show wheelie bins."
     }
   ],
   "updates": {

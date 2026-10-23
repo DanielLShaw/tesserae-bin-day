@@ -89,7 +89,8 @@ node --check bin_day/client.js bin_day_core/static/admin.js
 | `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, switching calendars (only that calendar's bins show, unsaved edits survive, every calendar shown is saved), and the page opened through Home Assistant's sidebar (ingress) |
 | `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for; the docs have each docs scenario's images |
 | `test_release.py` | Every root folder other than the two plugins is left out of the release tarball |
-| `tests/js/client.test.js` | Day labels, chip overflow, XS/SM/empty/error layouts, HTML and CSS escaping |
+| `test_widget_browser.py` | The widget in headless Chromium at the cell sizes dashboards give it: day labels never cut short, Auto colours following a theme set on the cell, and small cells' wheelie bins fitting the cell with the bins biggest |
+| `tests/js/client.test.js` | Day labels, chip overflow, XS/SM/empty/error layouts, small cells with wheelie bins, HTML and CSS escaping |
 
 ### How the integration tests work
 
@@ -142,7 +143,8 @@ screenshots/                 gitignored, always the latest run
   today/  after-cutoff/  colour-names/  busy-day/  busy-second-day/
   overflow/  overflow-second-day/  black-and-white/  palette-dark/  palette-light/
   solid-bins/  solid-bins-dark/  solid-bins-mono/  lid-colours/  lid-colours-mono/
-  mixed-bins/  set-by-hand/  empty/  error/
+  mixed-bins/  set-by-hand/  wheelie-small/  wheelie-small-one/  wheelie-small-busy/
+  empty/  error/
 ```
 
 Open `screenshots/index.html` to compare everything at once. Options, all

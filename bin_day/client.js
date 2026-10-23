@@ -2,6 +2,10 @@
 // payload (ctx.data = {days: [{date, days_until, streams}], next_change_at}).
 //
 // Layout follows ctx.cell.size:
+//   xs, sm  with the Small cells show option on Wheelie bins: the next
+//           collection day, its bins drawn as large as fit (up to
+//           SMALL_SLOTS), the count and short date beside or above them,
+//           whichever leaves the bins bigger. Names drop when too narrow.
 //   xs      the next collection day: its bins as chips, a big day count
 //   sm      one row per collection day (at most two): chips, then the day label.
 //           A row has ROW_SLOTS chips, the last becoming "+N" if more. When the
@@ -39,6 +43,11 @@ const MD_PARTIAL_MIN = 2; // slots a later day needs for a column: a bin and +N
 const HERO_SLOTS = 12; // bins for one busy day (md) or the lg hero, in two lines
 const STRIP_DAYS = 3; // later days in the lg strip
 const STRIP_NAMED_MAX = 3; // bins in a strip row that still get their names
+const SMALL_SLOTS = 4; // wheelie bins in a small cell: four, or three and +N
+const HEAD_SHARE = 0.35; // the part of a small cell's width or height the count takes
+const BIN_PITCH = 1.25; // a bin and its gap across, in bin widths
+const BIN_NAMED_TALL = 1.75; // a bin with its name beneath, in bin widths
+const NAME_MIN = 72; // px of the cell's width each bin needs to carry its name
 const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
 const ICON_NAME = /^[a-z0-9-]+$/;
 const MONO_FILLS = ["solid", "hatched", "white", "dotted", "crosshatch"];
@@ -94,10 +103,25 @@ function themeAccents(shadow) {
   return [1, 2, 3, 4, 5, 6].map((n) => style.getPropertyValue(`--accent-${n}`));
 }
 
+const followsTheme = (options) => !["mono", "colour", "eink"].includes(options?.colours);
+
 function isMono(shadow, options) {
-  if (options?.colours === "mono") return true;
-  if (options?.colours === "colour" || options?.colours === "eink") return false;
+  if (!followsTheme(options)) return options.colours === "mono";
   return isMonoPalette(themeAccents(shadow));
+}
+
+// The dashboard editor applies a cell's own theme by setting data-theme on
+// the cell without drawing the widget again, so Auto watches for it.
+const themeWatchers = new WeakMap();
+
+function watchCellTheme(shadow, ctx) {
+  themeWatchers.get(shadow)?.disconnect();
+  themeWatchers.delete(shadow);
+  const cell = shadow.host?.closest?.(".cell");
+  if (!cell || !followsTheme(ctx.cell.options)) return;
+  const watcher = new MutationObserver(() => render(shadow, ctx));
+  watcher.observe(cell, { attributes: true, attributeFilter: ["data-theme"] });
+  themeWatchers.set(shadow, watcher);
 }
 
 // The patterns bin bodies fill with in black and white, one of each.
@@ -203,6 +227,25 @@ function xsBody(day) {
   return `${rowChips(day.streams, day.streams.length >= ROW_SLOTS)}<div class="count">${big}<span class="count-unit">${unit}</span></div>`;
 }
 
+// The next collection in a small cell, bins first. The count sits beside the
+// bins or above them, whichever leaves the bins bigger in a w by h cell; with
+// no size to go on, above.
+function nextBody(day, { w, h }, locale) {
+  const slots = Math.min(day.streams.length, SMALL_SLOTS);
+  const binFor = (width, height) => Math.min(width / (slots * BIN_PITCH), height / BIN_NAMED_TALL);
+  const known = w > 0 && h > 0;
+  const beside = known && binFor(w * (1 - HEAD_SHARE), h) > binFor(w, h * (1 - HEAD_SHARE));
+  const named = !known || (beside ? w * (1 - HEAD_SHARE) : w) / slots >= NAME_MIN;
+  const { number, unit } = xsCount(day.days_until);
+  const big = number ? `<span class="count-number">${escapeHtml(number)}</span>` : "";
+  // Beside the bins the date may wrap; its day and month stay together.
+  const date = shortDate(day.date, locale).replace(/ (?=\S+$)/, " ");
+  return `<div class="next ${beside ? "beside" : "above"}${named ? "" : " no-names"}" style="--bins:${slots}">
+    <div class="next-head"><div class="count">${big}<span class="count-unit">${unit}</span></div><span class="next-date">${escapeHtml(date)}</span></div>
+    <div class="next-bins">${bins(day.streams, SMALL_SLOTS)}</div>
+  </div>`;
+}
+
 function smBody(days) {
   const [upcoming] = days;
   if (upcoming.streams.length >= BUSY_FROM) {
@@ -280,7 +323,9 @@ export default function render(shadow, ctx) {
   if (data?.error) body = errorBody(data.error);
   else if (!Array.isArray(data?.days)) body = errorBody("Couldn't load bin collections.");
   else if (!data.days.length) body = emptyBody();
-  else if (size === "xs") body = xsBody(data.days[0]);
+  else if ((size === "xs" || size === "sm") && ctx.cell.options?.small_cells === "bins") {
+    body = nextBody(data.days[0], ctx.cell, ctx.locale);
+  } else if (size === "xs") body = xsBody(data.days[0]);
   else if (size === "md") body = mdBody(data.days, ctx.locale);
   else if (size === "lg") body = lgBody(data.days, ctx.locale);
   else body = smBody(data.days);
@@ -289,4 +334,5 @@ export default function render(shadow, ctx) {
   <div class="w bin-day size-${size}${mono ? " mono" : ""}" data-widget="bin_day">
     ${mono ? PATTERNS : ""}<div class="w-body">${body}</div>
   </div>`;
+  watchCellTheme(shadow, ctx);
 }

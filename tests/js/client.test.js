@@ -474,3 +474,84 @@ describe("mono rendering", () => {
     assert.ok(!html.includes('onload="'));
   });
 });
+
+describe("small cells with wheelie bins", () => {
+  // A cell w by h with the Small cells show option set to Wheelie bins.
+  function drawBins(size, data, { w, h } = {}) {
+    const shadow = { innerHTML: "" };
+    render(shadow, { cell: { size, w, h, options: { small_cells: "bins" } }, data, locale: "en" });
+    return shadow.innerHTML;
+  }
+  const arrangement = (html) => html.match(/class="next (beside|above)/)?.[1];
+
+  for (const size of ["xs", "sm"]) {
+    test(`${size} draws the next collection's bins with its count and date`, () => {
+      const html = drawBins(size, { days: [TOMORROW, MONDAY] });
+      assert.equal(count(html, 'class="bin"'), 2);
+      assert.equal(count(html, 'class="chip"'), 0);
+      assert.ok(html.includes('<span class="count-number">1</span>'));
+      assert.ok(html.includes('<span class="count-unit">day</span>'));
+      // the day and month stay together if the date wraps
+      assert.ok(html.includes('<span class="next-date">Wed 7\u00a0Oct</span>'));
+      assert.ok(html.includes('class="bin-label">Refuse<'));
+      assert.ok(!html.includes("Recycling"));
+    });
+  }
+
+  test("a collection today says Today, with no number", () => {
+    const html = drawBins("xs", { days: [{ ...TOMORROW, days_until: 0 }] });
+    assert.equal(count(html, 'class="bin"'), 2);
+    assert.ok(html.includes('<span class="count-unit">Today</span>'));
+    assert.ok(!html.includes("count-number"));
+  });
+
+  test("small cells show chips unless wheelie bins are chosen", () => {
+    for (const options of [{}, { small_cells: "chips" }, { small_cells: "nonsense" }]) {
+      const shadow = { innerHTML: "" };
+      render(shadow, { cell: { size: "xs", options }, data: { days: [TOMORROW] }, locale: "en" });
+      assert.equal(count(shadow.innerHTML, 'class="bin"'), 0);
+      assert.equal(count(shadow.innerHTML, 'class="chip"'), 2);
+    }
+  });
+
+  test("MD and LG are the same whichever small cells show", () => {
+    for (const size of ["md", "lg"]) {
+      assert.equal(drawBins(size, { days: [TOMORROW, MONDAY] }), draw(size, { days: [TOMORROW, MONDAY] }));
+    }
+  });
+
+  test("up to four bins are drawn; five or more are three and +N", () => {
+    const four = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(4) }] });
+    assert.equal(count(four, 'class="bin"'), 4);
+    assert.ok(!four.includes('class="more"'));
+    const six = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(6) }] });
+    assert.equal(count(six, 'class="bin"'), 3);
+    assert.ok(six.includes('<span class="more">+3</span>'));
+  });
+
+  test("the count goes beside the bins or above them, whichever leaves the bins bigger", () => {
+    const one = { days: [{ ...TOMORROW, streams: [REFUSE] }] };
+    const two = { days: [TOMORROW] };
+    assert.equal(arrangement(drawBins("sm", one, { w: 205, h: 165 })), "beside");
+    assert.equal(arrangement(drawBins("xs", one, { w: 180, h: 180 })), "beside");
+    assert.equal(arrangement(drawBins("sm", two, { w: 205, h: 165 })), "above");
+    assert.equal(arrangement(drawBins("sm", one, { w: 150, h: 250 })), "above");
+    assert.equal(arrangement(drawBins("sm", two, { w: 380, h: 120 })), "beside");
+    assert.equal(arrangement(drawBins("sm", one)), "above");
+  });
+
+  test("names drop when the bins are too narrow to carry them", () => {
+    const four = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(4) }] }, { w: 205, h: 165 });
+    assert.ok(/class="next above no-names"/.test(four));
+    const three = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(3) }] }, { w: 205, h: 165 });
+    assert.ok(/class="next above no-names"/.test(three));
+    const roomy = drawBins("sm", { days: [{ ...TOMORROW, streams: bins(3) }] }, { w: 300, h: 200 });
+    assert.ok(/class="next above"/.test(roomy));
+  });
+
+  test("the bins carry their colours and black-and-white fills as in MD", () => {
+    const html = drawBins("xs", { days: [{ ...MONDAY, streams: [{ ...RECYCLING, mono_fill: "dotted" }] }] });
+    assert.ok(html.includes("--body:#1f4fd1"));
+    assert.ok(html.includes('data-mono="dotted"'));
+  });
+});

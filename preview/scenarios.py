@@ -66,6 +66,9 @@ class Scenario:
     cutoff: str = "10:00"
     colours: str = "auto"
     small_cells: str = "chips"
+    show_title: bool = True
+    title: str = ""
+    show_names: bool = True
     source: str = "schedule"
     theme: str | None = None  # render in this theme whatever the run's
     docs: tuple = ()
@@ -76,7 +79,14 @@ class Scenario:
 
     @property
     def options(self):
-        return {"cutoff": self.cutoff, "colours": self.colours, "small_cells": self.small_cells}
+        return {
+            "cutoff": self.cutoff,
+            "colours": self.colours,
+            "small_cells": self.small_cells,
+            "show_title": self.show_title,
+            "title": self.title,
+            "show_names": self.show_names,
+        }
 
 
 SCENARIOS = [
@@ -293,6 +303,22 @@ SCENARIOS = [
         _at(6, 8),
         [(1, ["trash", "leaf"]), (6, ["recycle"])],
         docs=("xs", "sm", "md", "lg"),
+    ),
+    Scenario(
+        "no-names",
+        "The Liverpool bins with Show bin names off: the bins grow into the space.",
+        LIVERPOOL_SET_UP,
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        show_names=False,
+    ),
+    Scenario(
+        "custom-title",
+        "The Liverpool bins with the title bar reading Bin day.",
+        LIVERPOOL_SET_UP,
+        _at(6, 8),
+        [(1, ["trash", "leaf"]), (6, ["recycle"])],
+        title="Bin day",
     ),
     Scenario(
         "solid-bins-dark",

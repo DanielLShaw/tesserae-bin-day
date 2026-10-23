@@ -325,9 +325,10 @@ def test_a_plus_n_badge_is_the_size_of_its_neighbours(tab, bins, w, h, streams, 
     bins(streams)
     show(tab, w, h)
     row = tab.locator(scope).first
-    neighbour, more = box(row.locator(shape).first), box(row.locator(".more"))
+    neighbour, more = box(row.locator(shape).last), box(row.locator(".more"))  # side by side
     assert abs((more[2] - more[0]) - (neighbour[2] - neighbour[0])) <= 1
     assert abs((more[3] - more[1]) - (neighbour[3] - neighbour[1])) <= 1
+    assert abs(more[3] - neighbour[3]) <= 1, "+N is not level with the bins beside it"
     cell = box(tab.locator(".cell").first)
     for element in tab.locator(f".w-title, .w-body :is({DRAWN}):visible").all():
         assert within(box(element), cell), element.evaluate("el => el.outerHTML.slice(0, 60)")
@@ -370,3 +371,17 @@ def test_md_day_columns_keep_their_bins_on_one_line(tab, bins):
     for column in tab.locator(".day-col").all():
         tops = {round(box(item)[1]) for item in column.locator(":is(.bin-item, .more)").all()}
         assert max(tops) - min(tops) <= 1, "a column's bins wrapped onto a second line"
+
+
+@pytest.mark.parametrize(
+    "w, h, options",
+    [(640, 400, {}), (1200, 800, {}), (205, 165, WHEELIE_BINS)],
+    ids=["md", "lg", "small"],
+)
+def test_each_bin_has_its_name_above_it(tab, bins, w, h, options):
+    bins(LIVERPOOL)
+    show(tab, w, h, **options)
+    for item in tab.locator(".bin-item").all():
+        label, drawn = box(item.locator(".bin-label")), box(item.locator(".bin"))
+        assert label[3] <= drawn[1] + 1
+        assert abs(label[0] - drawn[0]) <= 1, "the name doesn't start at the bin's left edge"

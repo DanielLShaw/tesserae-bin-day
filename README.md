@@ -103,7 +103,7 @@ Add a **Bin Day** cell to a dashboard. It has six options:
 | Collection done by | After this time on collection day, that day's bins count as collected and the next collection shows instead. 10:00 unless you change it. |
 | Colours | **Colour** suits screens. **Colour for e-ink** uses the exact inks of colour e-ink panels such as the reTerminal E1002, so bins print as solid ink. **Black & white** draws each bin solid, outlined or patterned, for mono panels. **Auto** uses Colour, or Black & white on black and white themes such as Paper and Newsprint. |
 | Small cells show | **Chips**, the default, shows the next two collection days in XS and SM cells, each bin as a coloured square. **Wheelie bins** shows only the next collection there, its bins drawn as large as the cell allows, for a small cell you read at a glance. MD and LG cells always draw wheelie bins. |
-| Show bin names | The names under the wheelie bins, and in LG's list of later days. Turn it off and the bins grow into the space. |
+| Show bin names | The names above the wheelie bins, and in LG's list of later days. Turn it off and the bins grow into the space. |
 
 With Small cells show set to Wheelie bins:
 

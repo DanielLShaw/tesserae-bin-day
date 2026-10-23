@@ -181,7 +181,7 @@ const BIN_SVG = `<svg viewBox="0 0 60 80" aria-hidden="true">
   <circle class="wheel" cx="47" cy="73" r="6"/>
 </svg>`;
 
-// A bin with its name under it, or without (Show bin names off): its
+// A bin with its name above it, or without (Show bin names off): its
 // aria-label names it for screen readers either way.
 function bin(stream, named = true) {
   const colours = [
@@ -190,7 +190,8 @@ function bin(stream, named = true) {
     `--ink:${safeColour(stream.icon_colour)}`,
   ].join(";");
   const name = escapeHtml(stream.label);
-  return `<span class="bin-item"><span class="bin" ${monoAttr(stream)} role="img" aria-label="${name}" style="${colours}">${BIN_SVG}${iconHtml(stream)}</span>${named ? `<span class="bin-label">${name}</span>` : ""}</span>`;
+  const label = named ? `<span class="bin-label">${name}</span>` : "";
+  return `<span class="bin-item">${label}<span class="bin" ${monoAttr(stream)} role="img" aria-label="${name}" style="${colours}">${BIN_SVG}${iconHtml(stream)}</span></span>`;
 }
 
 // "+N" for the bins that don't fit. Its text is in a child, so the badge box

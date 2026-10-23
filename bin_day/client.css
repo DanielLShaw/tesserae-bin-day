@@ -163,7 +163,7 @@
 }
 
 /* ---- wheelie bins ------------------------------------------------------- */
-/* A bin is 4/3 as tall as it is wide; with its name (--fs-label) under it a
+/* A bin is 4/3 as tall as it is wide; with its name (--fs-label) above it a
    bin item is about 1.39 bin widths plus a line of label text. */
 .bin-day {
   --name-line: calc(var(--fs-label) * 1.35);
@@ -177,7 +177,7 @@
 .bin-day .bins {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: flex-end; /* bins level along their bottoms, names above */
   gap: calc(var(--bin) * 0.1);
   /* --bins items a line, then wrap (a busy day's second line) */
   max-width: calc(var(--bin) * (var(--bins) * 1.25 - 0.1));
@@ -186,7 +186,7 @@
 .bin-day .bin-item {
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* on the left, its name under it */
+  align-items: flex-start; /* on the left, its name above it */
   gap: calc(var(--bin) * 0.06);
   width: calc(var(--bin) * 1.15);
   min-width: 0;

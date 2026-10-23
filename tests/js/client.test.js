@@ -397,6 +397,15 @@ describe("bin shapes", () => {
     assert.ok(html.includes('aria-label="Recycling"'));
   });
 
+  test("a bin's name sits above it", () => {
+    for (const [size, options] of [["md", {}], ["lg", {}], ["xs", { small_cells: "bins" }]]) {
+      const shadow = { innerHTML: "" };
+      render(shadow, { cell: { size, options }, data: { days: [{ ...MONDAY, streams: [RECYCLING] }] }, locale: "en" });
+      const item = shadow.innerHTML.match(/<span class="bin-item">.*?<\/span><\/span>/s)[0];
+      assert.ok(item.indexOf('class="bin-label"') < item.indexOf('class="bin"'), size);
+    }
+  });
+
   test("a stream with no icon gets a plain bin, never a generic one", () => {
     const html = draw("md", { days: [{ ...MONDAY, streams: [stream("Brown bin", null, "#7a4a21")] }] });
     assert.equal(count(html, 'class="bin"'), 1);

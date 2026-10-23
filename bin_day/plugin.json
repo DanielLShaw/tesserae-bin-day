@@ -203,7 +203,7 @@
       "type": "boolean",
       "label": "Show bin names",
       "default": true,
-      "help": "Off hides the names under wheelie bins, and in LG's list of later days. The bins grow into the space."
+      "help": "Off hides the names above wheelie bins, and in LG's list of later days. The bins grow into the space."
     }
   ],
   "updates": {

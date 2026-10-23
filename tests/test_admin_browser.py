@@ -123,7 +123,7 @@ def test_a_new_row_is_saved(tab, core):
     row.locator('input[aria-label="Bin name"]').fill("Recycling")
     row.locator('input[aria-label="First collection"]').fill("2026-10-07")
     row.locator('input[aria-label="Every (weeks)"]').fill("2")
-    tab.click('button[type="submit"]')
+    tab.click('[data-bd-form] button[type="submit"]')
     tab.wait_for_load_state("networkidle")
     [saved] = core.load()["schedule"]
     assert (saved["label"], saved["first_date"], saved["every_weeks"]) == (
@@ -228,7 +228,7 @@ def test_edits_survive_switching_and_every_calendar_shown_is_saved(tab, core, tw
     assert shown_list(tab).locator('select[aria-label="Bin colour"]').first.input_value() == (
         "purple"
     )
-    tab.click('button[type="submit"]')
+    tab.click('[data-bd-form] button[type="submit"]')
     tab.wait_for_load_state("networkidle")
     saved = core.load()
     assert saved["calendar"] == LIVERPOOL

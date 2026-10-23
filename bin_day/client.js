@@ -215,6 +215,14 @@ function gridChips(streams) {
   return chips(streams, GRID_SLOTS, " grid", shape);
 }
 
+// Tesserae's standard title bar (widget-design-system.md §4): the shared
+// .w-title, sized, cased and decorated by spectra-widgets.css and the style.
+function titleBar(options, t) {
+  if (options?.show_title === false) return "";
+  const text = String(options?.title ?? "").trim() || t("title", "Bins");
+  return `<div class="w-title"><i class="ph-bold ph-trash" aria-hidden="true"></i><h3>${escapeHtml(text)}</h3></div>`;
+}
+
 function errorBody(message) {
   return `<div class="notice is-error">
     <i class="ph-bold ph-warning-circle" aria-hidden="true"></i>
@@ -341,7 +349,7 @@ export default function render(shadow, ctx) {
   const mono = isMono(shadow, ctx.cell.options);
   shadow.innerHTML = `${STYLESHEETS}
   <div class="w bin-day size-${size}${mono ? " mono" : ""}" data-widget="bin_day">
-    ${mono ? PATTERNS : ""}<div class="w-body">${body}</div>
+    ${mono ? PATTERNS : ""}${titleBar(ctx.cell.options, t)}<div class="w-body">${body}</div>
   </div>`;
   watchCellTheme(shadow, ctx);
 }

@@ -44,6 +44,8 @@ const on = (daysUntil, streams) => ({
 });
 
 const count = (html, needle) => html.split(needle).length - 1;
+// The widget's body, below its title bar.
+const body = (html) => html.slice(html.indexOf('class="w-body"'));
 
 describe("day labels", () => {
   test("0 is Today, 1 is Tomorrow, otherwise N days", () => {
@@ -156,8 +158,8 @@ describe("render", () => {
   test("a stream with no icon gets a plain chip, never a generic bin", () => {
     const html = draw("sm", { days: [{ ...MONDAY, streams: [stream("Brown bin", null, "#7a4a21")] }] });
     assert.equal(count(html, 'class="chip"'), 1);
-    assert.ok(!html.includes("ph-trash"));
-    assert.ok(!html.includes("<i"));
+    assert.ok(!body(html).includes("ph-trash"));
+    assert.ok(!body(html).includes("<i"));
   });
 
   test("SM shrinks the chips for three bins on a day", () => {
@@ -385,7 +387,7 @@ describe("bin shapes", () => {
   test("a stream with no icon gets a plain bin, never a generic one", () => {
     const html = draw("md", { days: [{ ...MONDAY, streams: [stream("Brown bin", null, "#7a4a21")] }] });
     assert.equal(count(html, 'class="bin"'), 1);
-    assert.ok(!html.includes("<i"));
+    assert.ok(!body(html).includes("<i"));
   });
 
   for (const size of ["md", "lg"]) {
@@ -583,7 +585,7 @@ describe("translatable text", () => {
     drawWith(t, "sm", { error: "Calendar not found" });
     assert.deepEqual(
       [...asked.keys()].sort(),
-      ["load_failed", "n_days", "nothing_this_week", "today", "tomorrow", "unit_day", "unit_days"],
+      ["load_failed", "n_days", "nothing_this_week", "title", "today", "tomorrow", "unit_day", "unit_days"],
     );
     const english = JSON.parse(readFileSync(EN, "utf8"));
     assert.deepEqual(Object.fromEntries([...asked].sort()), Object.fromEntries(Object.entries(english).sort()));
@@ -603,5 +605,48 @@ describe("translatable text", () => {
     assert.ok(sm.includes("6 jours"));
     assert.ok(drawWith(t, "xs", { days: [MONDAY] }).includes(">jours<"));
     assert.ok(drawWith(t, "sm", { days: [] }).includes("Rien cette semaine"));
+  });
+});
+
+describe("title bar", () => {
+  function drawOpts(size, data, options) {
+    const shadow = { innerHTML: "" };
+    render(shadow, { cell: { size, options }, data, locale: "en" });
+    return shadow.innerHTML;
+  }
+  const bar = (text) => `<div class="w-title"><i class="ph-bold ph-trash" aria-hidden="true"></i><h3>${text}</h3></div>`;
+
+  test("a title bar reading Bins tops every layout by default", () => {
+    const states = [
+      ["xs", { days: [TOMORROW] }],
+      ["sm", { days: [TOMORROW, MONDAY] }],
+      ["md", { days: [TOMORROW, MONDAY] }],
+      ["lg", { days: [TOMORROW, MONDAY] }],
+      ["sm", { days: [] }],
+      ["sm", { error: "Calendar not found" }],
+    ];
+    for (const [size, data] of states) {
+      const html = drawOpts(size, data, {});
+      assert.ok(html.includes(bar("Bins")), `${size} ${JSON.stringify(data)}`);
+      assert.ok(html.indexOf(bar("Bins")) < html.indexOf('class="w-body"'));
+    }
+  });
+
+  test("the title bar shows the Title option's text", () => {
+    assert.ok(drawOpts("sm", { days: [TOMORROW] }, { title: "Bin day" }).includes(bar("Bin day")));
+  });
+
+  test("a title is shown as text, never markup", () => {
+    const html = drawOpts("sm", { days: [TOMORROW] }, { title: '<b>"Bins" & co</b>' });
+    assert.ok(html.includes(bar("&lt;b&gt;&quot;Bins&quot; &amp; co&lt;/b&gt;")));
+  });
+
+  test("a title of only spaces reads Bins", () => {
+    assert.ok(drawOpts("sm", { days: [TOMORROW] }, { title: "   " }).includes(bar("Bins")));
+  });
+
+  test("Show title row off drops the title bar", () => {
+    const html = drawOpts("sm", { days: [TOMORROW] }, { show_title: false, title: "Bin day" });
+    assert.ok(!html.includes("w-title"));
   });
 });

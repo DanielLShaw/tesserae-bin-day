@@ -138,3 +138,16 @@ def test_one_small_cell_wheelie_bin_fills_much_of_the_cell(tab, bins, w, h):
     show(tab, w, h, **WHEELIE_BINS)
     first_bin = box(tab.locator(".next .bin"))
     assert first_bin[3] - first_bin[1] >= 0.5 * h
+
+
+def test_a_long_title_stays_on_one_line_and_the_cell_still_fits(tab, bins):
+    bins(ONE_TOMORROW)
+    show(tab, 205, 165, title="Collections for the house at the end of the lane, every week", **WHEELIE_BINS)
+    heading = tab.locator(".w-title h3")
+    size = float(heading.evaluate("el => parseFloat(getComputedStyle(el).fontSize)"))
+    assert heading.bounding_box()["height"] <= 1.6 * size
+    assert heading.evaluate("el => el.scrollWidth > el.clientWidth")
+    cell = box(tab.locator(".cell").first)
+    drawn = tab.locator(".w-title, .next :is(.bin, .more, .count, .next-date, .bin-label):visible")
+    for element in drawn.all():
+        assert within(box(element), cell), element.evaluate("el => el.outerHTML.slice(0, 60)")

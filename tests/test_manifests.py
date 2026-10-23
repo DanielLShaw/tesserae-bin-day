@@ -43,6 +43,15 @@ def test_every_cutoff_choice_is_honoured_and_default_is_ten():
     assert [parse_cutoff(v).strftime("%H:%M") for v in values] == values
 
 
+def test_title_options_come_first_and_title_shows_only_with_its_row():
+    options = manifest("bin_day")["cell_options"]
+    assert [o["name"] for o in options[:2]] == ["show_title", "title"]
+    assert cell_option("show_title")["default"] is True
+    title = cell_option("title")
+    assert title["default"] == ""
+    assert title["show_if"] == {"show_title": True}
+
+
 def test_small_cells_offer_chips_by_default_or_the_wheelie_bins_client_js_draws():
     option = cell_option("small_cells")
     assert option["default"] == "chips"

@@ -15,6 +15,23 @@
   },
   "cell_options": [
     {
+      "name": "show_title",
+      "type": "boolean",
+      "label": "Show title row",
+      "default": true,
+      "help": "Off hides the title bar: its icon and text."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "label": "Title",
+      "default": "",
+      "help": "The title bar's text. Leave empty for Bins.",
+      "show_if": {
+        "show_title": true
+      }
+    },
+    {
       "name": "cutoff",
       "type": "select",
       "label": "Collection done by",

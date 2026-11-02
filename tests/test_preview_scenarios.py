@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 import pytest
 
-from preview.scenarios import SCENARIOS
+from preview.scenarios import ADMIN_SCENARIOS, SCENARIOS
 
 from .conftest import REPO
 
@@ -45,6 +45,19 @@ def test_each_docs_image_is_rendered_and_shown(image):
     assert image in pages
 
 
+ADMIN_IMAGES = [f"images/{s.name}.png" for s in ADMIN_SCENARIOS]
+
+
+def test_there_is_an_admin_image_for_each_source():
+    assert {s.config["source"] for s in ADMIN_SCENARIOS} == {"calendar", "schedule"}
+
+
+@pytest.mark.parametrize("image", ADMIN_IMAGES)
+def test_each_admin_image_is_shot_and_shown(image):
+    assert (DOCS / image).is_file(), "run: uv run preview/shoot.py --docs"
+    assert f"docs/{image}" in (REPO / "README.md").read_text()
+
+
 def test_the_readme_shows_every_size():
     assert {"xs", "sm", "md", "lg"} <= {
         size
@@ -55,6 +68,6 @@ def test_the_readme_shows_every_size():
 
 
 def test_scenario_names_are_unique_folder_names():
-    names = [s.name for s in SCENARIOS]
+    names = [s.name for s in (*SCENARIOS, *ADMIN_SCENARIOS)]
     assert len(set(names)) == len(names)
     assert all(n.replace("-", "").isalnum() and n == n.lower() for n in names)

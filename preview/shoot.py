@@ -18,8 +18,9 @@ A full run (no -s/-z/-t/-d/--e6) replaces the whole folder, so it holds only the
 latest shots; narrower runs update just the shots they take. Shots are
 rendered into a staging folder first, so a failed run changes nothing.
 --docs instead renders each scenario's ``docs`` sizes into
-docs/images/<scenario>-<size>.png, for the README and docs/bin-colours.md;
-those images are committed.
+docs/images/<scenario>-<size>.png, for the README and docs/bin-colours.md,
+and shoots the admin page for each admin scenario into
+docs/images/<scenario>.png, for the README; those images are committed.
 
 Boots a real Tesserae app from the pinned checkout in .tesserae/ with this
 repo's plugins installed, saves each scenario's config from preview/scenarios.py, pins
@@ -40,13 +41,15 @@ import threading
 from pathlib import Path
 from urllib.parse import quote
 
-from scenarios import SCENARIOS
+from fake_ha import FakeHA
+from scenarios import ADMIN_SCENARIOS, SCENARIOS
 from werkzeug.serving import make_server
 
 REPO = Path(__file__).resolve().parent.parent
 TESSERAE_SRC = Path(os.environ.get("TESSERAE_SRC", REPO / ".tesserae")).expanduser()
 DOCS_IMAGES = REPO / "docs" / "images"
 SIZES = ("xs", "sm", "md", "lg")
+ADMIN_WIDTH = 1280  # wide enough for the admin page's rows as a table, uncut
 DIMS = re.compile(r"^(\d{2,4})x(\d{2,4})$")
 INSTALL_HINT = "uv run playwright install chromium --only-shell"
 
@@ -225,17 +228,61 @@ def shoot(stage, scenarios, views, themes, e6=False):
     return count
 
 
+def shoot_admin(stage):
+    """<scenario>.png in ``stage`` for each admin scenario: the admin page, with
+    Home Assistant Core pointed at a fake Home Assistant holding its calendars."""
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
+    app, core, data_root = boot_app()
+    ha = FakeHA()
+    app.config["SETTINGS_STORE"].patch_section(
+        "plugins", {"ha_core": {"base_url": ha.url, "token": FakeHA.TOKEN}}
+    )
+    server = make_server("127.0.0.1", 0, app, threaded=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}/plugins/bin_day_core/"
+
+    from playwright.sync_api import sync_playwright
+
+    try:
+        with sync_playwright() as playwright:
+            browser = launch_browser(playwright)
+            page = browser.new_page(viewport={"width": ADMIN_WIDTH, "height": 800})
+            for scenario in ADMIN_SCENARIOS:
+                for entity_id, (name, events) in scenario.calendars.items():
+                    ha.add_calendar(entity_id, name, events)
+                with app.app_context():
+                    core.save_config(scenario.config)
+                page.goto(url)
+                page.wait_for_load_state("networkidle")
+                page.evaluate("document.fonts.ready")
+                if page.locator(".bd-note:visible, .bd-errors").count():
+                    sys.exit(f"{scenario.name}: the admin page shows a warning")
+                # The page itself, without Tesserae's menu bar above it.
+                box = page.locator("main.page").bounding_box()
+                page.screenshot(path=stage / f"{scenario.name}.png", full_page=True, clip=box)
+            browser.close()
+    finally:
+        server.shutdown()
+        ha.stop()
+        shutil.rmtree(data_root, ignore_errors=True)
+
+
 def shoot_docs():
-    """docs/images/<scenario>-<size>.png: each scenario at its ``docs`` sizes."""
+    """docs/images/: each scenario at its ``docs`` sizes, as
+    <scenario>-<size>.png, and each admin scenario's page, as <scenario>.png."""
     scenarios = [s for s in SCENARIOS if s.docs]
     sizes = [size for size in SIZES if any(size in s.docs for s in scenarios)]
     stage = Path(tempfile.mkdtemp(prefix="bin-day-stage-"))
     try:
         shoot(stage, scenarios, sizes, ["light"])
+        shoot_admin(stage)
         DOCS_IMAGES.mkdir(parents=True, exist_ok=True)
-        images = [(s.name, size) for s in scenarios for size in s.docs]
-        for name, size in images:
-            shutil.copyfile(stage / name / f"{size}.png", DOCS_IMAGES / f"{name}-{size}.png")
+        images = [
+            (f"{s.name}/{size}.png", f"{s.name}-{size}.png") for s in scenarios for size in s.docs
+        ]
+        images += [(f"{s.name}.png", f"{s.name}.png") for s in ADMIN_SCENARIOS]
+        for shot, name in images:
+            shutil.copyfile(stage / shot, DOCS_IMAGES / name)
     finally:
         shutil.rmtree(stage, ignore_errors=True)
     print(f"{len(images)} images in {DOCS_IMAGES}")

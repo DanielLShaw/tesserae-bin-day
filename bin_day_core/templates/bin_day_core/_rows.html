@@ -2,6 +2,12 @@
    Import them ``with context``: they read icon_choices, colour_choices and
    max_every_weeks. #}
 
+{# A cell's name. The column headings name the cells while the rows are a
+   table; these name them once the rows stack, on a narrow screen. #}
+{% macro cell_label(text) -%}
+<span class="bd-label" aria-hidden="true">{{ text }}</span>
+{%- endmacro %}
+
 {# One icon or colour control: a dropdown with "Custom…", revealing a field.
    For a known bin, Automatic names what it gives, "Blue (auto)", and carries
    it as data-auto. An icon dropdown shows its icon inside, at the left. #}
@@ -11,6 +17,7 @@
 {% set auto = row[field ~ '_auto'] %}
 {% set auto_name = row[field ~ '_auto_name'] %}
 <div class="field bd-style" data-custom-field>
+  {{ cell_label(label) }}
   <div class="bd-select">
     {%- if kind == 'icon' %}
     {%- set shown = (custom or 'question') if choice == 'custom' else (choice or auto) %}
@@ -65,9 +72,9 @@
 
 {% macro bin_row(prefix, row) -%}
 <li class="bd-row bd-bin{% if row.hide %} is-disabled{% endif %}" data-row>
-  <div class="field"><input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="Refuse" aria-label="Bin name"></div>
-  <div class="field"><input type="date" name="{{ prefix }}-first_date" value="{{ row.first_date }}" aria-label="First collection"></div>
-  <div class="field"><input type="number" name="{{ prefix }}-every_weeks" value="{{ row.every_weeks }}" min="1" max="{{ max_every_weeks }}" step="1" placeholder="1" aria-label="Every (weeks)"></div>
+  <div class="field bd-name">{{ cell_label('Bin name') }}<input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="Refuse" aria-label="Bin name"></div>
+  <div class="field">{{ cell_label('First collection') }}<input type="date" name="{{ prefix }}-first_date" value="{{ row.first_date }}" aria-label="First collection"></div>
+  <div class="field">{{ cell_label('Every (weeks)') }}<input type="number" name="{{ prefix }}-every_weeks" value="{{ row.every_weeks }}" min="1" max="{{ max_every_weeks }}" step="1" placeholder="1" aria-label="Every (weeks)"></div>
   {{ style_cells(prefix, row) }}
   {{ row_actions(prefix, row) }}
 </li>
@@ -78,14 +85,14 @@
 <li class="bd-row bd-mapping{% if row.hide %} is-disabled{% endif %}" data-row>
   <input type="hidden" name="{{ prefix }}-calendar" value="{{ calendar }}" data-calendar-input>
   {%- if row.discovered %}
-  <div class="bd-title">
+  <div class="bd-title bd-name">
     <input type="hidden" name="{{ prefix }}-match" value="{{ row.match }}" data-title-input>
     <span data-title-text>{{ row.match }}</span>
   </div>
   {%- else %}
-  <div class="field"><input type="text" name="{{ prefix }}-match" value="{{ row.match }}" placeholder="Name contains…" aria-label="Name contains"></div>
+  <div class="field bd-name">{{ cell_label('Bin name') }}<input type="text" name="{{ prefix }}-match" value="{{ row.match }}" placeholder="Name contains…" aria-label="Name contains"></div>
   {%- endif %}
-  <div class="field"><input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="(as is)" aria-label="Show as"></div>
+  <div class="field">{{ cell_label('Show as') }}<input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="(as is)" aria-label="Show as"></div>
   {{ style_cells(prefix, row) }}
   {{ row_actions(prefix, row, removable=not row.discovered) }}
 </li>

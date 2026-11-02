@@ -287,3 +287,91 @@ def test_behind_home_assistant_ingress_the_page_is_styled_and_works(tab, core, t
     assert urlsplit(tab.url).path == ingress + ADMIN
     saved = core.load()
     assert (saved["source"], saved["calendar"]) == ("calendar", LIVERPOOL)
+
+
+# ---- phones, tablets and desktops ----------------------------------------------
+
+PHONE = {"width": 390, "height": 844}
+TABLET = {"width": 768, "height": 1024}
+LAPTOP = {"width": 1000, "height": 800}  # too narrow for the schedule's 7 columns
+NARROW = pytest.mark.parametrize("window", [PHONE, TABLET, LAPTOP], ids=["phone", "tablet", "1000"])
+
+
+def off_screen(tab, locators):
+    """The aria-labels of those of ``locators`` that run past the window's edges."""
+    width = tab.viewport_size["width"]
+    off = []
+    for locator in locators:
+        box = locator.bounding_box()
+        if box["x"] < 0 or box["x"] + box["width"] > width:
+            off.append(locator.get_attribute("aria-label"))
+    return off
+
+
+@NARROW
+def test_narrow_every_control_in_a_bin_row_is_on_screen(tab, core, window):
+    core.save(schedule=[{"label": "Recycling", "first_date": "2026-09-01", "every_weeks": 2}])
+    tab.set_viewport_size(window)
+    open_admin(tab)
+    controls = bin_rows(tab).nth(0).locator("input:visible, select:visible, button:visible")
+    assert controls.count() == 8
+    assert off_screen(tab, controls.all()) == []
+
+
+@NARROW
+def test_narrow_every_control_in_a_calendar_row_is_on_screen(tab, core, two_calendars, window):
+    core.save(source="calendar", calendar=LIVERPOOL)
+    tab.set_viewport_size(window)
+    open_admin(tab)
+    shown_titles(tab, 2)
+    row = shown_list(tab).locator("[data-row]").first
+    controls = row.locator("input:visible, select:visible, button:visible")
+    assert controls.count() == 5
+    assert off_screen(tab, controls.all()) == []
+
+
+def test_on_a_phone_each_field_is_labelled_beside_it_in_place_of_the_headings(tab, core):
+    core.save(schedule=[{"label": "Recycling", "first_date": "2026-09-01", "every_weeks": 2}])
+    tab.set_viewport_size(PHONE)
+    open_admin(tab)
+    row = bin_rows(tab).nth(0)
+    shown = [label.inner_text() for label in row.locator(".bd-label").all() if label.is_visible()]
+    assert shown == [
+        "Bin name",
+        "First collection",
+        "Every (weeks)",
+        "Icon",
+        "Bin colour",
+        "Lid colour",
+    ]
+    assert not tab.locator(".bd-head.bd-bin").is_visible()
+    label = row.locator(".bd-label", has_text="Lid colour").bounding_box()
+    select = row.locator('select[aria-label="Lid colour"]').bounding_box()
+    assert label["x"] + label["width"] <= select["x"]
+    middle = label["y"] + label["height"] / 2
+    assert select["y"] < middle < select["y"] + select["height"]
+
+
+def test_on_a_phone_the_row_buttons_are_big_enough_to_tap(tab, core):
+    core.save(schedule=[{"label": "Recycling", "first_date": "2026-09-01", "every_weeks": 2}])
+    tab.set_viewport_size(PHONE)
+    open_admin(tab)
+    for button in bin_rows(tab).nth(0).locator("button").all():
+        box = button.bounding_box()
+        assert box["width"] >= 40 and box["height"] >= 40
+
+
+def test_on_a_desktop_the_bins_are_a_table_that_fits_the_window(tab, core):
+    core.save(schedule=[{"label": "Recycling", "first_date": "2026-09-01", "every_weeks": 2}])
+    width = 1280
+    tab.set_viewport_size({"width": width, "height": 800})
+    open_admin(tab)
+    row = bin_rows(tab).nth(0)
+    assert tab.locator(".bd-head.bd-bin").is_visible()
+    assert not any(label.is_visible() for label in row.locator(".bd-label").all())
+    name = row.locator('input[aria-label="Bin name"]').bounding_box()
+    for control in row.locator("input:visible, select:visible, button:visible").all():
+        box = control.bounding_box()
+        assert box["y"] < name["y"] + name["height"] and name["y"] < box["y"] + box["height"]
+    card = tab.locator('section[data-show-for="schedule"]').bounding_box()
+    assert card["x"] + card["width"] <= width

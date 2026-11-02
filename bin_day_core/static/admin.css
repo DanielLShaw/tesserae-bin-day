@@ -75,9 +75,17 @@
 }
 
 /* ---- rows ------------------------------------------------------------------ */
+/* Tesserae's .form is a grid, whose cards won't shrink below their content.
+   Without this, rows too wide for the screen would widen their card past the
+   page's edge, where Tesserae clips them, rather than scroll in .bd-scroll. */
+.bd-form > .card {
+  min-width: 0;
+}
+
 .bd-scroll {
   margin: var(--t-space-3) 0 var(--t-space-2);
   overflow-x: auto;
+  container-type: inline-size;
 }
 
 .bd-list {
@@ -127,6 +135,11 @@
 
 .bd-row .field {
   min-width: 0;
+}
+
+/* Each cell's name, shown once the rows stack (below). */
+.bd-label {
+  display: none;
 }
 
 .bd-title {
@@ -204,4 +217,69 @@
 
 .bd-icon-spacer {
   width: 30px;
+}
+
+/* ---- rows on a narrow screen ----------------------------------------------- */
+/* Too narrow for the table (the schedule's 7 columns need about 61rem): each
+   row becomes a card, the bin's name and buttons on top, then a line per
+   field with its name beside it. Cards sit two across where they fit. */
+@container (max-width: 61rem) {
+  .bd-head {
+    display: none;
+  }
+
+  .bd-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+    min-width: 0;
+  }
+
+  .bd-bin,
+  .bd-mapping {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: start;
+  }
+
+  .bd-row > * {
+    grid-column: 1 / -1;
+  }
+
+  .bd-row > .bd-name {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .bd-row > .bd-actions {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    gap: var(--t-space-2);
+  }
+
+  .bd-label {
+    display: block;
+    font-size: var(--t-size-sm);
+    font-weight: 500;
+    color: var(--t-fg-soft);
+  }
+
+  /* Every field but the name: its name on the left, its dropdown or box
+     (and any custom field under it) on the right. */
+  .bd-row > .field:not(.bd-name) {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    column-gap: var(--t-space-2);
+    align-items: center;
+  }
+
+  .bd-row > .field:not(.bd-name) > :not(.bd-label) {
+    grid-column: 2;
+  }
+
+  .bd-icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .bd-icon-spacer {
+    width: 40px;
+  }
 }

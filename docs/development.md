@@ -86,8 +86,8 @@ node --check bin_day/client.js bin_day_core/static/admin.js
 | `test_plugins_load.py`, `test_manifests.py` | Both plugins load in Tesserae, validate against its schema, offer the title, cutoff, colour, small-cell and bin-name options in order, and a daily refresh |
 | `test_widget.py` | `fetch()` end to end, including every error tile |
 | `test_admin.py`, `test_core_server.py` | The admin page (source, bins, a calendar's bin names and its own saved settings, the rows endpoint, saving and its errors, links under Home Assistant's ingress prefix), config storage and its older shape, timezone and plugin reload |
-| `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, switching calendars (only that calendar's bins show, unsaved edits survive, every calendar shown is saved), and the page opened through Home Assistant's sidebar (ingress) |
-| `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for; the docs have each docs scenario's images |
+| `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, switching calendars (only that calendar's bins show, unsaved edits survive, every calendar shown is saved), the page opened through Home Assistant's sidebar (ingress), and phone, tablet and 1000px widths, where each bin becomes a card with every control on screen, its fields labelled beside them and buttons big enough to tap, while a desktop keeps the table |
+| `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for; the docs have each docs scenario's images, and the README a picture of the admin page for each source |
 | `test_release.py` | Every root folder other than the two plugins is left out of the release tarball |
 | `test_widget_browser.py` | The widget in headless Chromium at the cell sizes dashboards give it: every layout reading title bar, bins, then days left from the top left, fitting its cell; text following the style's type scale; black and white in the theme's inks; dividers only where the style draws rules; day labels never cut short; Auto colours following a theme set on the cell; small cells' wheelie bins taller than their count; bins growing when names are hidden; a long title |
 | `tests/js/client.test.js` | Day labels, chip overflow, the markup order of every layout, the title bar and its options, Show bin names, small cells with wheelie bins, every word coming from `strings/en.json`, HTML and CSS escaping |
@@ -102,7 +102,7 @@ cell through Tesserae's `/_test/render` route and read back the JSON that
 `bin_day_core` server module, so date-dependent results are fixed.
 
 The Home Assistant tests run a small fake Home Assistant HTTP server (the
-`FakeHA` class in `tests/conftest.py`) on a local port and point the bundled
+`FakeHA` class in `preview/fake_ha.py`, shared with the screenshot tool) on a local port and point the bundled
 Home Assistant Core plugin at it, so the real request code, auth header and
 Tesserae's network permission checks all run. It answers like Home Assistant
 does, including a 400 for an unknown calendar, and can be told to fail or
@@ -175,8 +175,12 @@ should show, which `test_preview_scenarios.py` checks.
 
 `uv run preview/shoot.py --docs` renders each scenario at the sizes in its
 `docs` field into `docs/images/`, the images in the README and
-[bin-colours.md](bin-colours.md). Unlike `screenshots/`, these are
-committed; render them again when a change alters how those bins look.
+[bin-colours.md](bin-colours.md). It also shoots the Bin Day Core admin
+page, 1280 wide, for each `AdminScenario` in `preview/scenarios.py`: one per
+source, the calendar one read from a fake Home Assistant. Unlike
+`screenshots/`, these are committed; render them again when a change alters
+how those bins or the admin page look. A run writes every image again, so
+commit only those whose pictures changed.
 
 The tool drives Chromium through Playwright. If Playwright's matching
 Chromium build is missing it falls back to the newest one installed and

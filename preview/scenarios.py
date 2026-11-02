@@ -8,10 +8,14 @@ each collection day, or the start of the error tile's message.
 ``docs`` lists the sizes a scenario is rendered at for the README and
 docs/bin-colours.md: ``preview/shoot.py --docs`` writes them to
 docs/images/<scenario>-<size>.png.
+
+``ADMIN_SCENARIOS`` are pictures of the Bin Day Core admin page for the
+README, one per source: ``preview/shoot.py --docs`` writes each to
+docs/images/<scenario>.png.
 """
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 LONDON = ZoneInfo("Europe/London")
@@ -397,5 +401,81 @@ SCENARIOS = [
         _at(6, 8),
         "Choose your bin calendar",
         source="calendar",
+    ),
+]
+
+
+# ---- the admin page ------------------------------------------------------------
+
+
+def _mapping(match, icon="", body_colour=""):
+    return {
+        "match": match,
+        "label": "",
+        "icon": icon,
+        "body_colour": body_colour,
+        "lid_colour": "",
+        "hide": False,
+    }
+
+
+def _event(summary, day):
+    """An all-day event, as Home Assistant's calendar API gives it."""
+    end = date.fromisoformat(day) + timedelta(days=1)
+    return {"summary": summary, "start": {"date": day}, "end": {"date": end.isoformat()}}
+
+
+@dataclass(frozen=True)
+class AdminScenario:
+    """The admin page with ``config`` saved, and Home Assistant holding
+    ``calendars``: ``{entity_id: (name, events)}``."""
+
+    name: str
+    description: str
+    config: dict
+    calendars: dict = field(default_factory=dict)
+
+
+LIVERPOOL_CALENDAR = "calendar.liverpool_city_council"
+
+ADMIN_SCENARIOS = [
+    AdminScenario(
+        "admin-calendar",
+        "Liverpool's calendar, set up as the README says: purple refuse, garden icon on Green.",
+        {
+            "source": "calendar",
+            "calendar": LIVERPOOL_CALENDAR,
+            "schedule": [],
+            "mappings": {
+                LIVERPOOL_CALENDAR: [
+                    _mapping("Refuse", body_colour="purple"),
+                    _mapping("Green", icon="leaf"),
+                ]
+            },
+        },
+        {
+            LIVERPOOL_CALENDAR: (
+                "Liverpool City Council",
+                [
+                    _event("Refuse", "2026-10-07"),
+                    _event("Green", "2026-10-07"),
+                    _event("Recycling", "2026-10-12"),
+                ],
+            )
+        },
+    ),
+    AdminScenario(
+        "admin-schedule",
+        "A manual schedule of the help text's own examples, colours and icons on auto.",
+        {
+            "source": "schedule",
+            "calendar": "",
+            "schedule": [
+                _stream("Refuse", "2026-10-07", 2),
+                _stream("Blue recycling bin", "2026-10-12", 2),
+                _stream("Green lidded garden waste", "2026-10-07", 2),
+            ],
+            "mappings": {},
+        },
     ),
 ]

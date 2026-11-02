@@ -83,6 +83,8 @@ where your bins come from, then save.
    yet. Each calendar keeps its own settings, so switching calendar loses
    nothing.
 
+![Bin Day Core set to Liverpool's calendar: Refuse with a purple bin, Green with the Garden icon, and Recycling left on auto as a blue bin](docs/images/admin-calendar.png)
+
 Bin Day checks the calendar at most once an hour. If Home Assistant can't be
 reached, it keeps showing the last bins it had, for up to a day.
 
@@ -92,6 +94,8 @@ Choose **Manual schedule**, then **Add a bin** for each bin: its name, its
 first collection date (any past collection date works too), and how often
 it's collected (every 1 to 8 weeks). Bin Day works out the rest of the dates
 from those.
+
+![Bin Day Core with a manual schedule: Refuse, Blue recycling bin and Green lidded garden waste, each with its first collection, every 2 weeks, and its icon and colours on auto](docs/images/admin-schedule.png)
 
 ### Place the widget
 

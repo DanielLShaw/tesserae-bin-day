@@ -152,6 +152,17 @@
   min-width: 0;
 }
 
+/* A custom icon's name field, with the link to the icon names above it. */
+.bd-custom:has(.bd-browse) {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.bd-browse {
+  font-size: var(--t-size-sm);
+}
+
 .bd-custom input[type="color"] {
   flex: 0 0 auto;
   width: 38px;

@@ -27,6 +27,7 @@
   </div>
   <div class="bd-custom"{% if choice != 'custom' %} hidden{% endif %}>
     {%- if kind == 'icon' %}
+    <a href="https://phosphoricons.com" target="_blank" rel="noreferrer" class="bd-browse">Browse icon names</a>
     <input type="text" name="{{ prefix }}-{{ field }}_custom" value="{{ custom }}" placeholder="armchair"
            aria-label="{{ label }} name" autocomplete="off" spellcheck="false" data-icon-input>
     {%- else %}

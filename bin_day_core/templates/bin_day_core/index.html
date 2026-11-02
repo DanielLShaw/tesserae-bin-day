@@ -72,12 +72,9 @@
 
     <div data-calendar-bins{% if not config.calendar %} hidden{% endif %}>
       <h3 class="bd-sub">Bins in this calendar</h3>
-      <p class="field-help">Each bin name in the calendar's next 8 weeks gets a row. Leave icon and
-        colours on auto to work them out from the name, or set them here. Liverpool's
-        "Green", for example, needs the Garden icon. The eye hides a bin you don't have.
-        Add a row to style names that haven't turned up yet; it matches the whole name, or whole
-        words within one. Each calendar keeps its own settings.
-        <a href="https://phosphoricons.com" target="_blank" rel="noreferrer">Browse icon names</a>.</p>
+      <p class="field-help">A row per bin name in the calendar's next 8 weeks. The colour and icon
+        are automatically detected from the name; change any that are wrong, such as Liverpool's
+        "Green", which needs the Garden icon.</p>
       <p class="field-help bd-note" data-titles-status aria-live="polite">{{ titles_status }}</p>
       <div class="bd-scroll">
         <div class="bd-head bd-mapping" aria-hidden="true">
@@ -95,10 +92,9 @@
 
   <section class="card" data-show-for="schedule"{% if config.source != 'schedule' %} hidden{% endif %}>
     {{ card_head('Your bins', icon_name='calendar-dots', level=2) }}
-    <p class="field-help">A row per bin. The first collection date sets which week of the cycle
-      it falls in. Leave icon and colours on auto to work them out from the name.
-      The eye hides a bin without deleting it.
-      <a href="https://phosphoricons.com" target="_blank" rel="noreferrer">Browse icon names</a>.</p>
+    <p class="field-help">A row per bin collection. On save, the colour and icon are automatically
+      detected from the name: "Blue recycling bin" gives a blue bin with the recycling icon,
+      and "Green lidded garden waste" a dark grey bin with a green lid and the garden icon.</p>
     <div class="bd-scroll">
       <div class="bd-head bd-bin" aria-hidden="true">
         <span>Bin name</span><span>First collection</span><span>Every (weeks)</span><span>Icon</span><span>Bin colour</span><span>Lid colour</span><span></span>

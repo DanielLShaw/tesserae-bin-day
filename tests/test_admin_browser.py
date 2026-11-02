@@ -93,9 +93,10 @@ def test_custom_icon_reveals_a_name_field_with_a_live_preview(tab, core):
     open_admin(tab)
     row = bin_rows(tab).nth(0)
     field = row.locator("[data-icon-input]")
-    assert not field.is_visible()
+    browse = row.get_by_role("link", name="Browse icon names")
+    assert not field.is_visible() and not browse.is_visible()
     row.locator('select[aria-label="Icon"]').select_option("custom")
-    assert field.is_visible()
+    assert field.is_visible() and browse.is_visible()
     field.fill("ph-armchair")
     assert (
         row.locator(".bd-icon-preview").get_attribute("class")

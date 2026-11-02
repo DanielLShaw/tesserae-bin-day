@@ -270,6 +270,19 @@ class TestSchedule:
         html = page(client)
         assert automatic(html, "schedule-__N__-body_colour") == "Automatic"
 
+    def test_browse_icon_names_sits_above_the_custom_icon_name_not_in_the_help(
+        self, client, stored
+    ):
+        stored(schedule=[bin_("Bulky", icon="armchair")])
+        html = page(client)
+        assert re.search(
+            r'<div class="bd-custom">\s*<a href="https://phosphoricons.com"[^>]*>'
+            r'Browse icon names</a>\s*<input type="text" name="schedule-0-icon_custom"',
+            html,
+        )
+        for help_text in re.findall(r'<p class="field-help">.*?</p>', html, re.S):
+            assert "phosphoricons" not in help_text
+
     def test_each_icon_dropdown_shows_its_icon(self, client, stored):
         stored(
             schedule=[

@@ -72,7 +72,7 @@
 
 {% macro bin_row(prefix, row) -%}
 <li class="bd-row bd-bin{% if row.hide %} is-disabled{% endif %}" data-row>
-  <div class="field bd-name">{{ cell_label('Bin name') }}<input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="Refuse" aria-label="Bin name"></div>
+  <div class="field bd-name"><input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="Refuse" aria-label="Bin name"></div>
   <div class="field">{{ cell_label('First collection') }}<input type="date" name="{{ prefix }}-first_date" value="{{ row.first_date }}" aria-label="First collection"></div>
   <div class="field">{{ cell_label('Every (weeks)') }}<input type="number" name="{{ prefix }}-every_weeks" value="{{ row.every_weeks }}" min="1" max="{{ max_every_weeks }}" step="1" placeholder="1" aria-label="Every (weeks)"></div>
   {{ style_cells(prefix, row) }}
@@ -90,7 +90,7 @@
     <span data-title-text>{{ row.match }}</span>
   </div>
   {%- else %}
-  <div class="field bd-name">{{ cell_label('Bin name') }}<input type="text" name="{{ prefix }}-match" value="{{ row.match }}" placeholder="Name contains…" aria-label="Name contains"></div>
+  <div class="field bd-name"><input type="text" name="{{ prefix }}-match" value="{{ row.match }}" placeholder="Name contains…" aria-label="Name contains"></div>
   {%- endif %}
   <div class="field">{{ cell_label('Show as') }}<input type="text" name="{{ prefix }}-label" value="{{ row.label }}" placeholder="(as is)" aria-label="Show as"></div>
   {{ style_cells(prefix, row) }}

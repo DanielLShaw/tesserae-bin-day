@@ -337,7 +337,6 @@ def test_on_a_phone_each_field_is_labelled_beside_it_in_place_of_the_headings(ta
     row = bin_rows(tab).nth(0)
     shown = [label.inner_text() for label in row.locator(".bd-label").all() if label.is_visible()]
     assert shown == [
-        "Bin name",
         "First collection",
         "Every (weeks)",
         "Icon",

@@ -8,7 +8,7 @@ from conftest import REPO
 
 def export_ignored():
     lines = (REPO / ".gitattributes").read_text().splitlines()
-    return {line.split()[0].rstrip("/") for line in lines if line.endswith(" export-ignore")}
+    return {line.split()[0].strip("/") for line in lines if line.endswith(" export-ignore")}
 
 
 def root_folders():
@@ -29,13 +29,21 @@ def test_every_root_folder_is_a_plugin_or_left_out_of_the_tarball():
     assert all((REPO / folder / "plugin.json").is_file() for folder in shipped)
 
 
-def test_each_plugins_smoke_test_ships_and_the_root_conftest_does_not():
-    paths = ["bin_day/tests/test_smoke.py", "bin_day_core/tests/test_smoke.py", "conftest.py"]
+def left_out_of_the_archive(paths):
+    """Which of ``paths`` git archive leaves out. A folder is asked about with
+    its trailing slash, as git archive asks, so a ``tests/`` pattern can match
+    it at any depth."""
     out = subprocess.run(
-        ["git", "check-attr", "export-ignore", *paths],
+        ["git", "check-attr", "--stdin", "export-ignore"],
         cwd=REPO,
+        input="\n".join(paths),
         capture_output=True,
         text=True,
         check=True,
     ).stdout.splitlines()
-    assert [line.rsplit(": ", 1)[1] for line in out] == ["unspecified", "unspecified", "set"]
+    return {line.split(": export-ignore: ")[0] for line in out if line.endswith(": set")}
+
+
+def test_each_plugins_smoke_test_ships_and_the_root_tests_and_conftest_do_not():
+    paths = ["bin_day/tests/", "bin_day_core/tests/", "tests/", "conftest.py"]
+    assert left_out_of_the_archive(paths) == {"tests/", "conftest.py"}

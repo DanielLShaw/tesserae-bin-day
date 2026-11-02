@@ -29,8 +29,14 @@ It fits any cell size, from a single tile up to a full panel:
 
 ## Examples
 
-The Liverpool bins above in the dark theme, then in Black & white, and a
-council that tells its bins apart by lid.
+A real panel, then the Liverpool bins above in the dark theme, in Black &
+white, and a council that tells its bins apart by lid.
+
+**On a Seeed reTerminal E1002**, a colour e-ink panel, from a Waste
+Collection Schedule calendar: a large cell and two small ones, with the
+recycling collected tomorrow.
+
+![Bin Day on a reTerminal E1002: a large cell with a blue recycling bin, Tomorrow, Tue 3 Nov; a small cell with a recycling chip and Tomorrow; and a small cell with the bin, 1 day and the date](docs/images/bin-day-on-reterminal-e1002.jpg)
 
 **Dark theme.** Outlines follow the theme, so dark bins stay clear on a dark
 background.

@@ -197,6 +197,10 @@ source, the calendar one read from a fake Home Assistant. Unlike
 how those bins or the admin page look. A run writes every image again, so
 commit only those whose pictures changed.
 
+`docs/images/bin-day-on-reterminal-e1002.jpg` is a photo of a real panel,
+not a render, with its metadata (location included) removed; `--docs`
+leaves it alone.
+
 The tool drives Chromium through Playwright. If Playwright's matching
 Chromium build is missing it falls back to the newest one installed and
 says so; install the matching build with

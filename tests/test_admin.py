@@ -408,6 +408,14 @@ class TestCalendarBins:
         liverpool.fail_with = 500
         assert f"Couldn't read {LIVERPOOL}" in unescape(page(client))
 
+    def test_a_calendar_that_answers_with_no_list_is_reported(self, client, stored, liverpool):
+        stored(source="calendar", calendar=LIVERPOOL)
+        liverpool.calendars[LIVERPOOL] = {"message": "surprise"}
+        assert (
+            f"Couldn't read {LIVERPOOL} from Home Assistant: "
+            "it sent something other than a list of events"
+        ) in unescape(page(client))
+
 
 class TestRowsEndpoint:
     """Choosing another calendar on the page fetches its rows from here. The

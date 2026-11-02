@@ -6,8 +6,7 @@ import pytest
 
 from bin_day_core.bin_logic import colour_hex, display_stream, icon_ink, mono_fill
 from bin_day_core.bin_logic.resolve import COLOUR_WORDS, FALLBACK_COLOUR
-
-from .conftest import HAVE_TESSERAE
+from conftest import HAVE_TESSERAE
 
 HEX6 = re.compile(r"#[0-9a-f]{6}")
 PALETTE_NAMES = sorted({name for _, name in COLOUR_WORDS} | {FALLBACK_COLOUR})

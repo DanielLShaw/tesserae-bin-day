@@ -5,8 +5,7 @@ import json
 import pytest
 
 from bin_day_core.bin_logic import parse_cutoff
-
-from .conftest import HAVE_TESSERAE, REPO, TESSERAE_SRC
+from conftest import HAVE_TESSERAE, REPO, TESSERAE_SRC
 
 pytestmark = pytest.mark.skipif(not HAVE_TESSERAE, reason="needs a Tesserae checkout")
 
@@ -29,6 +28,19 @@ def test_manifest_validates_against_the_host_schema(folder):
 
 def test_both_plugins_share_one_version():
     assert manifest("bin_day")["version"] == manifest("bin_day_core")["version"]
+
+
+def test_the_widget_declares_it_fetches_through_its_core():
+    assert manifest("bin_day")["requires"] == ["plugin:bin_day_core"]
+
+
+def test_the_core_may_reach_any_host_as_home_assistant_is_wherever_the_user_set_it():
+    assert manifest("bin_day_core")["requires"] == [
+        "network:*",
+        "plugin:ha_core",
+        "settings:plugin/ha_core",
+        "settings:app",
+    ]
 
 
 def test_cells_have_no_source_option_core_holds_it():

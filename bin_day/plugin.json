@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Bin Day",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "kind": "widget",
   "description": "Which bins are collected in the next 7 days and how many days until each collection, from a Home Assistant calendar (such as Waste Collection Schedule's) or a schedule you enter. Set your bins up in Bin Day Core.",
   "icon": "ph-trash",
@@ -13,6 +13,9 @@
       "lg"
     ]
   },
+  "requires": [
+    "plugin:bin_day_core"
+  ],
   "cell_options": [
     {
       "name": "show_title",
@@ -206,6 +209,43 @@
       "help": "Off hides the names above wheelie bins, and in LG's list of later days. The bins grow into the space."
     }
   ],
+  "fragments": [
+    {
+      "id": "full",
+      "label": "Bins",
+      "w": 380,
+      "h": 240,
+      "icon": "ph-trash"
+    },
+    {
+      "id": "next",
+      "label": "Next collection",
+      "w": 240,
+      "h": 200,
+      "icon": "ph-calendar-check"
+    },
+    {
+      "id": "bins",
+      "label": "Bins only",
+      "w": 200,
+      "h": 160,
+      "icon": "ph-trash"
+    },
+    {
+      "id": "countdown",
+      "label": "Countdown",
+      "w": 200,
+      "h": 100,
+      "icon": "ph-clock-countdown"
+    },
+    {
+      "id": "chips",
+      "label": "Next two days",
+      "w": 380,
+      "h": 120,
+      "icon": "ph-squares-four"
+    }
+  ],
   "updates": {
     "on_schedule": [
       {
@@ -213,6 +253,81 @@
         "suggested_at": "00:05"
       }
     ]
+  },
+  "data_schema": {
+    "fields": [
+      {
+        "name": "next_days_until",
+        "type": "num",
+        "label": "Days until the next collection",
+        "unit": "days"
+      },
+      {
+        "name": "next_bins",
+        "type": "str",
+        "label": "Bins in the next collection"
+      },
+      {
+        "name": "next_date",
+        "type": "str",
+        "label": "Date of the next collection"
+      },
+      {
+        "name": "days",
+        "type": "arr",
+        "label": "Collection days"
+      }
+    ],
+    "sample": {
+      "days": [
+        {
+          "date": "2026-10-07",
+          "days_until": 1,
+          "streams": [
+            {
+              "id": "refuse",
+              "label": "Refuse",
+              "icon": "trash",
+              "body_colour": "#6b2c91",
+              "lid_colour": "#6b2c91",
+              "icon_colour": "#ffffff",
+              "chip_icon_colour": "#ffffff",
+              "mono_fill": "solid"
+            },
+            {
+              "id": "garden",
+              "label": "Green",
+              "icon": "leaf",
+              "body_colour": "#13803a",
+              "lid_colour": "#13803a",
+              "icon_colour": "#ffffff",
+              "chip_icon_colour": "#ffffff",
+              "mono_fill": "hatched"
+            }
+          ]
+        },
+        {
+          "date": "2026-10-12",
+          "days_until": 6,
+          "streams": [
+            {
+              "id": "recycling",
+              "label": "Recycling",
+              "icon": "recycle",
+              "body_colour": "#1f4fd1",
+              "lid_colour": "#1f4fd1",
+              "icon_colour": "#ffffff",
+              "chip_icon_colour": "#ffffff",
+              "mono_fill": "white"
+            }
+          ]
+        }
+      ],
+      "next_days_until": 1,
+      "next_date": "2026-10-07",
+      "next_bins": "Refuse, Green",
+      "next_change_at": "2026-10-07T00:00:00+01:00"
+    }
   },
   "design": {
     "palette": "extended"

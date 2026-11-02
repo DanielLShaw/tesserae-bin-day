@@ -1,11 +1,17 @@
 {
   "tesserae_compat": "1.x",
   "name": "Bin Day Core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "kind": "data",
   "description": "Where every Bin Day cell gets its bins (a Home Assistant calendar or a schedule you enter) and how each bin looks, set on its page under Widgets, Admin pages. No cell of its own.",
   "icon": "ph-trash",
   "supports": {
     "sizes": []
-  }
+  },
+  "requires": [
+    "network:*",
+    "plugin:ha_core",
+    "settings:plugin/ha_core",
+    "settings:app"
+  ]
 }

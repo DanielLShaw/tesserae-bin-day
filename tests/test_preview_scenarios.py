@@ -5,9 +5,8 @@ from urllib.parse import quote
 
 import pytest
 
+from conftest import REPO
 from preview.scenarios import ADMIN_SCENARIOS, SCENARIOS
-
-from .conftest import REPO
 
 DOCS = REPO / "docs"
 

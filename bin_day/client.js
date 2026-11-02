@@ -258,19 +258,32 @@ function xsBody(day, t) {
   return `${rowChips(day.streams, day.streams.length >= ROW_SLOTS)}${countHtml(day.days_until, t)}`;
 }
 
-// The next collection in a small cell: its bins, then the count and date.
-// Names drop when Show bin names is off, or the cell (w wide) gives each bin
-// less than NAME_MIN.
-function nextBody(day, { w, options }, locale, t) {
+// The date under a count. Should it wrap, its day and month stay together.
+const nextDate = (iso, locale) =>
+  `<span class="next-date">${escapeHtml(shortDate(iso, locale).replace(/ (?=\S+$)/, "\u00a0"))}</span>`;
+
+// The next collection in a small cell: its bins, then the count and date
+// (left off with ``head`` false). Names drop when Show bin names is off, or
+// the cell (w wide) gives each bin less than NAME_MIN.
+function nextBody(day, { w, options }, locale, t, head = true) {
   const slots = Math.min(day.streams.length, SMALL_SLOTS);
   const named = options?.show_names !== false && (!(w > 0) || w / slots >= NAME_MIN);
-  // Should the date wrap, its day and month stay together.
-  const date = shortDate(day.date, locale).replace(/ (?=\S+$)/, "\u00a0");
-  return `<div class="next${named ? "" : " no-names"}" style="--bins:${slots}">
+  const classes = `next${named ? "" : " no-names"}${head ? "" : " no-head"}`;
+  return `<div class="${classes}" style="--bins:${slots}">
     ${bins(day.streams, SMALL_SLOTS, named)}
-    <div class="next-head">${countHtml(day.days_until, t)}<span class="next-date">${escapeHtml(date)}</span></div>
+    ${head ? `<div class="next-head">${countHtml(day.days_until, t)}${nextDate(day.date, locale)}</div>` : ""}
   </div>`;
 }
+
+// The pieces the canvas editor places on their own (plugin.json's
+// fragments), each without the title bar, from ``days`` (never empty).
+const FRAGMENTS = {
+  next: (days, ctx, t) => nextBody(days[0], ctx.cell, ctx.locale, t),
+  bins: (days, ctx, t) => nextBody(days[0], ctx.cell, ctx.locale, t, false),
+  countdown: ([day], ctx, t) =>
+    `<div class="countdown">${countHtml(day.days_until, t)}${nextDate(day.date, ctx.locale)}</div>`,
+  chips: (days, ctx, t) => smBody(days, t),
+};
 
 function smBody(days, t) {
   const [upcoming] = days;
@@ -345,6 +358,9 @@ function lgBody(days, locale, t, named) {
 
 export default function render(shadow, ctx) {
   const size = SIZES.includes(ctx.cell.size) ? ctx.cell.size : "sm";
+  // A canvas piece, or null for the whole widget ("full", or an id it doesn't know).
+  const asked = ctx.fragment ?? ctx.cell.fragment;
+  const fragment = Object.hasOwn(FRAGMENTS, asked ?? "") ? asked : null;
   const data = ctx.data;
   const t = words(ctx);
   const named = ctx.cell.options?.show_names !== false;
@@ -352,6 +368,7 @@ export default function render(shadow, ctx) {
   if (data?.error) body = errorBody(data.error);
   else if (!Array.isArray(data?.days)) body = errorBody(t("load_failed", "Couldn't load bin collections."));
   else if (!data.days.length) body = emptyBody(t);
+  else if (fragment) body = FRAGMENTS[fragment](data.days, ctx, t);
   else if ((size === "xs" || size === "sm") && ctx.cell.options?.small_cells === "bins") {
     body = nextBody(data.days[0], ctx.cell, ctx.locale, t);
   } else if (size === "xs") body = xsBody(data.days[0], t);
@@ -360,8 +377,8 @@ export default function render(shadow, ctx) {
   else body = smBody(data.days, t);
   const mono = isMono(shadow, ctx.cell.options);
   shadow.innerHTML = `${STYLESHEETS}
-  <div class="w bin-day size-${size}${mono ? " mono" : ""}" data-widget="bin_day">
-    ${mono ? PATTERNS : ""}${titleBar(ctx.cell.options, t)}<div class="w-body">${body}</div>
+  <div class="w bin-day size-${size}${fragment ? ` frag-${fragment}` : ""}${mono ? " mono" : ""}" data-widget="bin_day">
+    ${mono ? PATTERNS : ""}${fragment ? "" : titleBar(ctx.cell.options, t)}<div class="w-body">${body}</div>
   </div>`;
   watchCellTheme(shadow, ctx);
 }

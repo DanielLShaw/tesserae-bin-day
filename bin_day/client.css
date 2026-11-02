@@ -681,3 +681,38 @@
     -webkit-line-clamp: 4;
   }
 }
+
+/* ---- canvas fragments: pieces placed on their own ------------------------ */
+/* plugin.json's fragments, drawn by client.js without the title bar. Each
+   reads from the top left like every layout and takes the box it is given. */
+
+/* Bins only: .next's bins with no count or date under them. */
+.bin-day .next.no-head {
+  --head: 0px;
+}
+
+/* The count as large as the box allows, the date under it. A short box drops
+   the date first, keeping the count. */
+.bin-day .countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+  --date-line: calc(var(--fs-label) * 1.35 + var(--space-1));
+}
+
+.bin-day .countdown .count {
+  /* "Today", its widest, is about 2.8 of its own size across */
+  font-size: max(1em, min(calc((100cqh - var(--date-line)) / 1.1), calc(100cqw / 3)));
+}
+
+@container (max-height: 60px) {
+  .bin-day .countdown {
+    --date-line: 0px;
+  }
+
+  .bin-day .countdown .next-date {
+    display: none;
+  }
+}

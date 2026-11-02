@@ -88,6 +88,26 @@ def shown(data):
 LIVERPOOL_SHOWN = [("2026-10-07", ["Refuse", "Green"]), ("2026-10-12", ["Recycling"])]
 
 
+class TestCapabilities:
+    """Tesserae checks each connection a cell's fetch makes against the
+    widget's ``requires``, and the delegates it names."""
+
+    def test_the_declared_capabilities_let_the_cell_reach_home_assistant(
+        self, client, registry, liverpool
+    ):
+        assert registry.get("bin_day").capabilities.declared
+        assert shown(cell_data(client)) == LIVERPOOL_SHOWN
+
+    def test_without_network_on_the_core_the_cell_could_not(
+        self, client, registry, liverpool, monkeypatch
+    ):
+        from app.capabilities import parse
+
+        core = registry.get("bin_day_core")
+        monkeypatch.setattr(core, "capabilities", parse("bin_day_core", ["plugin:ha_core"]))
+        assert cell_data(client)["error"].startswith(f"Couldn't load {LIVERPOOL}")
+
+
 class TestFetch:
     def test_cell_shows_the_calendars_collections(self, client, liverpool):
         data = cell_data(client)
@@ -127,7 +147,10 @@ class TestFetch:
 
     def test_a_response_that_is_not_an_event_list_is_a_load_error(self, client, liverpool):
         liverpool.calendars[LIVERPOOL] = {"message": "surprise"}
-        assert "Couldn't load" in cell_data(client)["error"]
+        assert cell_data(client)["error"] == (
+            f"Couldn't load {LIVERPOOL} from Home Assistant: "
+            "it sent something other than a list of events"
+        )
 
     def test_only_the_chosen_calendars_mappings_apply(self, client, liverpool, use_calendar):
         cottage = {"calendar.cottage": [{**GREEN_MAPPING, "label": "Garden", "hide": True}]}
@@ -163,13 +186,15 @@ class TestCache:
         cell_data(client, fresh=True)
         assert len(liverpool.requests) == 2
 
-    @pytest.mark.parametrize("failure", ["http_error", "unreachable"])
+    @pytest.mark.parametrize("failure", ["http_error", "unreachable", "not_a_list"])
     def test_ha_failing_serves_a_cached_answer_under_a_day_old(
         self, client, liverpool, clock, failure
     ):
         cell_data(client)
         if failure == "http_error":
             liverpool.fail_with = 500
+        elif failure == "not_a_list":
+            liverpool.calendars[LIVERPOOL] = {"message": "surprise"}
         else:
             liverpool.stop()
         clock.now = TUE_8AM + timedelta(hours=20)  # 04:00 Wednesday

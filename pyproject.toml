@@ -31,7 +31,8 @@ default-groups = ["dev", "host"]
 tesserae = { path = ".tesserae", editable = true }
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# tests/, then each plugin's smoke test (which ships with it, as Tesserae's do).
+testpaths = ["tests", "bin_day/tests", "bin_day_core/tests"]
 # Repo root on sys.path so tests can import bin_day_core.bin_logic as a
 # namespace package without the plugin folders becoming real packages.
 pythonpath = ["."]
@@ -40,6 +41,7 @@ addopts = "-ra --strict-markers --import-mode=importlib --cov --cov-report=term-
 [tool.coverage.run]
 branch = true
 source = ["bin_day_core", "bin_day"]
+omit = ["*/tests/*"]
 
 [tool.coverage.report]
 fail_under = 95

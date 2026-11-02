@@ -687,3 +687,87 @@ describe("Show bin names", () => {
     assert.ok(drawOpts("xs", { days: [TOMORROW] }, { small_cells: "bins" }).includes('class="bin-label">Refuse<'));
   });
 });
+
+describe("canvas fragments", () => {
+  // The fragment ``id``, as the canvas editor places it in a w by h box.
+  function drawFragment(id, data, { size = "sm", w = 240, h = 200, options = {} } = {}) {
+    const shadow = { innerHTML: "" };
+    render(shadow, { cell: { size, w, h, options, fragment: id }, fragment: id, data, locale: "en" });
+    return shadow.innerHTML;
+  }
+  const DATA = { days: [TOMORROW, MONDAY] };
+
+  for (const id of ["next", "bins", "countdown", "chips"]) {
+    test(`${id} has no title bar and names itself for client.css`, () => {
+      const html = drawFragment(id, DATA);
+      assert.ok(!html.includes('class="w-title"'));
+      assert.ok(html.includes(`frag-${id}`));
+    });
+
+    test(`${id} shows the empty and error notices`, () => {
+      assert.ok(drawFragment(id, { days: [] }).includes("Nothing this week"));
+      assert.ok(drawFragment(id, { error: "Add your bins" }).includes("Add your bins"));
+    });
+  }
+
+  test("next shows the next collection's bins with its count and date", () => {
+    const html = drawFragment("next", DATA);
+    assert.equal(count(html, 'class="bin"'), 2);
+    assert.ok(html.includes('class="bin-label">Refuse<'));
+    assert.ok(html.includes('<div class="stat-value count">1<span class="unit">day</span></div>'));
+    assert.ok(html.includes('<span class="next-date">Wed 7 Oct</span>'));
+    assert.ok(!html.includes("Recycling"));
+  });
+
+  test("bins shows the next collection's bins and nothing else", () => {
+    const html = drawFragment("bins", DATA);
+    assert.equal(count(html, 'class="bin"'), 2);
+    assert.ok(html.includes('class="bin-label">Refuse<'));
+    assert.ok(!html.includes("stat-value"));
+    assert.ok(!html.includes("next-date"));
+    assert.ok(!html.includes("Recycling"));
+  });
+
+  test("bins follows Show bin names", () => {
+    const html = drawFragment("bins", DATA, { options: { show_names: false } });
+    assert.equal(count(html, 'class="bin"'), 2);
+    assert.ok(!html.includes('class="bin-label"'));
+  });
+
+  test("countdown shows the count and date, and no bins", () => {
+    const html = drawFragment("countdown", DATA);
+    assert.equal(count(html, 'class="bin"'), 0);
+    assert.equal(count(html, 'class="chip"'), 0);
+    assert.ok(html.includes('<div class="stat-value count">1<span class="unit">day</span></div>'));
+    assert.ok(html.includes('<span class="next-date">Wed 7 Oct</span>'));
+  });
+
+  test("countdown says Today with no number", () => {
+    const html = drawFragment("countdown", { days: [{ ...TOMORROW, days_until: 0 }] });
+    assert.ok(html.includes('<div class="stat-value count">Today</div>'));
+  });
+
+  test("chips shows the next two days as chip rows", () => {
+    const html = drawFragment("chips", { days: [TOMORROW, MONDAY, LATER] });
+    assert.equal(count(html, 'class="bin"'), 0);
+    assert.equal(count(html, 'class="day-row"'), 2);
+    assert.equal(count(html, 'class="chip"'), 3);
+    assert.ok(html.includes(">Tomorrow<"));
+    assert.ok(html.includes(">6 days<"));
+  });
+
+  test("the whole widget, or an id it doesn't know, draws the full widget", () => {
+    const full = drawFragment("full", DATA);
+    assert.ok(full.includes('class="w-title"'));
+    assert.ok(!full.includes("frag-"));
+    for (const id of [undefined, "nonsense", "constructor", "__proto__"]) {
+      assert.equal(drawFragment(id, DATA), full, String(id));
+    }
+  });
+
+  test("a fragment named only on the cell is honoured", () => {
+    const shadow = { innerHTML: "" };
+    render(shadow, { cell: { size: "sm", options: {}, fragment: "countdown" }, data: DATA, locale: "en" });
+    assert.ok(shadow.innerHTML.includes("frag-countdown"));
+  });
+});

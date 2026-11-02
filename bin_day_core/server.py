@@ -27,6 +27,7 @@ from flask import (
     url_for,
 )
 
+PLUGIN_ID = "bin_day_core"
 _HERE = Path(__file__).resolve().parent
 
 
@@ -60,10 +61,15 @@ NEEDS_HA_CORE = (
 )
 NEEDS_BINS = "Add your bins in Bin Day Core (Widgets menu, Admin pages)."
 NEEDS_CALENDAR = "Choose your bin calendar in Bin Day Core (Widgets menu, Admin pages)."
+# Why a calendar's events couldn't be read, when Home Assistant answered with
+# something else.
+NOT_A_LIST = "it sent something other than a list of events"
 
 
 def _data_dir():
-    return current_app.config["PLUGIN_REGISTRY"].get("bin_day_core").data_dir
+    # This plugin's own registry entry, named by a constant: Studio's linter
+    # reads a quoted id here as fetching through another plugin.
+    return current_app.config["PLUGIN_REGISTRY"].get(PLUGIN_ID).data_dir
 
 
 def _config_path():
@@ -143,11 +149,11 @@ def _read_cache(entity_id):
 
 
 def _fetch_events(ha, entity_id, now, days=logic.calendar.QUERY_DAYS):
+    """The calendar's events, or None if HA answered with something other than
+    a list of them. ha_core's own errors are left to the caller."""
     start, end = logic.calendar_query_range(now, days)
     events = ha.request_json(f"/api/calendars/{quote(entity_id)}?start={start}&end={end}")
-    if not isinstance(events, list):
-        raise ValueError("Home Assistant sent something other than a list of events")
-    return events
+    return events if isinstance(events, list) else None
 
 
 def _calendar_missing(ha, entity_id, err):
@@ -182,14 +188,15 @@ def _calendar_payload(entity_id, mappings, cutoff, fresh, eink):
                     "error": f"Calendar {entity_id} wasn't found in Home Assistant. If it "
                     "was renamed, pick it again in Bin Day Core."
                 }
-            if state == "expired":
-                return {
-                    "error": f"Couldn't load {entity_id} from Home Assistant: "
-                    f"{ha.coerce_error(err)}"
-                }
-            events = cached["events"]
+            events, problem = None, ha.coerce_error(err)
         else:
+            problem = NOT_A_LIST  # what None from _fetch_events means
+        if events is not None:
             _write_json(_cache_path(entity_id), {"fetched_at": now.isoformat(), "events": events})
+        elif state == "expired":
+            return {"error": f"Couldn't load {entity_id} from Home Assistant: {problem}"}
+        else:
+            events = cached["events"]
     return logic.calendar_payload(events, mappings, now, logic.parse_cutoff(cutoff), eink)
 
 
@@ -274,6 +281,8 @@ def discover_titles(entity_id):
         events = _fetch_events(ha, entity_id, _now(), DISCOVERY_DAYS)
     except Exception as err:  # noqa: BLE001 - surfaced on the page, never raised
         return [], f"Couldn't read {entity_id} from Home Assistant: {ha.coerce_error(err)}"
+    if events is None:
+        return [], f"Couldn't read {entity_id} from Home Assistant: {NOT_A_LIST}"
     return logic.distinct_titles(events), None
 
 

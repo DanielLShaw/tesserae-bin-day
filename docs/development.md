@@ -54,6 +54,20 @@ node --test tests/js/client.test.js          # client tests without coverage
 Run a subset with `--no-cov`, or the coverage gate fails on the code that
 subset doesn't reach.
 
+### The plugins' smoke tests
+
+`bin_day/tests/test_smoke.py` and `bin_day_core/tests/test_smoke.py` follow
+Tesserae's smoke test pattern and ship in the release, as Tesserae's own
+widgets' do. They render the widget at each size and as each canvas fragment,
+and open and save the admin page. They use only the `client` fixture, which
+the root `conftest.py` defines just as Tesserae's own root conftest does, so
+they run unchanged in a Tesserae checkout with both folders in its
+`plugins/`:
+
+```sh
+./.venv/bin/python -m pytest plugins/bin_day plugins/bin_day_core -q
+```
+
 ### Without a Tesserae checkout
 
 The pure-logic tests need nothing but Python:
@@ -80,21 +94,22 @@ node --check bin_day/client.js bin_day_core/static/admin.js
 | `test_collections.py` | The 0 to 7 day window, the cutoff time, same-day merge, de-duplication, the `next_change_at` refresh hint |
 | `test_palette.py` | Colour names to hex, a black or white icon that contrasts with each bin and chip fill, and each bin's black-and-white fill |
 | `test_config.py` | Parsing and validating the admin form: source, calendar, bins, each calendar's title mappings, custom icons and colours, hidden rows |
-| `test_payload.py` | The data a cell receives from `fetch()` |
+| `test_payload.py` | The data a cell receives from `fetch()`, with the next collection in brief for canvas bindings |
 | `test_calendar.py` | Home Assistant events to dates (all-day and timed, across clock changes), the query range, cache freshness |
-| `test_ha_source.py` | The calendar source end to end against a fake Home Assistant: the calendar chosen in Core, query, renamed calendar, not connected, the 1-hour cache and 24-hour fallback |
-| `test_plugins_load.py`, `test_manifests.py` | Both plugins load in Tesserae, validate against its schema, offer the title, cutoff, colour, small-cell and bin-name options in order, and a daily refresh |
-| `test_widget.py` | `fetch()` end to end, including every error tile |
+| `test_ha_source.py` | The calendar source end to end against a fake Home Assistant: the calendar chosen in Core, query, renamed calendar, not connected, an answer that isn't a list, the 1-hour cache and 24-hour fallback, and the calls getting through Tesserae's network checks with the declared `requires` (and failing without `network:*`) |
+| `test_plugins_load.py`, `test_manifests.py` | Both plugins load in Tesserae, validate against its schema, declare their `requires`, offer the title, cutoff, colour, small-cell and bin-name options in order, and a daily refresh |
+| `test_widget.py` | `fetch()` end to end, including every error tile, and the `data_schema` matching its fields, with a sample in its shape |
 | `test_admin.py`, `test_core_server.py` | The admin page (source, bins, a calendar's bin names and its own saved settings, the rows endpoint, saving and its errors, links under Home Assistant's ingress prefix), config storage and its older shape, timezone and plugin reload |
 | `test_admin_browser.py` | The admin page in headless Chromium: switching source, adding, removing and hiding rows, the custom icon and colour fields, switching calendars (only that calendar's bins show, unsaved edits survive, every calendar shown is saved), the page opened through Home Assistant's sidebar (ingress), and phone, tablet and 1000px widths, where each bin becomes a card with every control on screen, its fields labelled beside them and buttons big enough to tap, while a desktop keeps the table |
 | `test_preview_scenarios.py` | Each screenshot scenario shows what it is named for; the docs have each docs scenario's images, and the README a picture of the admin page for each source |
-| `test_release.py` | Every root folder other than the two plugins is left out of the release tarball |
-| `test_widget_browser.py` | The widget in headless Chromium at the cell sizes dashboards give it: every layout reading title bar, bins, then days left from the top left, fitting its cell; text following the style's type scale; black and white in the theme's inks; dividers only where the style draws rules; day labels never cut short; Auto colours following a theme set on the cell; small cells' wheelie bins taller than their count; bins growing when names are hidden; a long title |
-| `tests/js/client.test.js` | Day labels, chip overflow, the markup order of every layout, the title bar and its options, Show bin names, small cells with wheelie bins, every word coming from `strings/en.json`, HTML and CSS escaping |
+| `test_release.py` | Every root folder other than the two plugins is left out of the release tarball, as is the root `conftest.py`; the plugins' smoke tests ship |
+| `test_widget_browser.py` | The widget in headless Chromium at the cell sizes dashboards give it: every layout reading title bar, bins, then days left from the top left, fitting its cell; text following the style's type scale; black and white in the theme's inks; dividers only where the style draws rules; day labels never cut short; Auto colours following a theme set on the cell; small cells' wheelie bins taller than their count; bins growing when names are hidden; a long title; each canvas fragment fitting its box from the top left at its default size and smaller and larger, the bins and countdown growing with it |
+| `tests/js/client.test.js` | Day labels, chip overflow, the markup order of every layout, the title bar and its options, Show bin names, small cells with wheelie bins, each canvas fragment's markup, every word coming from `strings/en.json`, HTML and CSS escaping |
+| `bin_day/tests/`, `bin_day_core/tests/` | The plugins' smoke tests (above) |
 
 ### How the integration tests work
 
-`tests/conftest.py` creates a Tesserae app in testing mode with a throwaway
+The root `conftest.py` creates a Tesserae app in testing mode with a throwaway
 data folder per test, and symlinks `bin_day/` and `bin_day_core/` into it as
 pushed widgets, the same way a developer push installs them. Tests render a
 cell through Tesserae's `/_test/render` route and read back the JSON that
@@ -197,9 +212,11 @@ bin_day_core/         admin + data plugin
   templates/          admin page
   static/             admin page script and styles
 tests/                pytest suites; tests/js/ for client.js
+conftest.py           the Tesserae app fixtures, shared with each plugin's tests/
 preview/              screenshot scenarios and tool, local dev server
 docs/                 bin colours and this guide, with example images
 ```
 
-`tests/`, `preview/`, `docs/` and `.github/` are export-ignored, so the release tarball
-holds only the plugin folders and root files.
+`tests/`, `preview/`, `docs/`, `.github/` and the root `conftest.py` are
+export-ignored, so the release tarball holds only the plugin folders (with
+their smoke tests) and root files.

@@ -7,6 +7,8 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from conftest import REPO
+
 TUE_8AM = datetime(2026, 10, 6, 8, 0, tzinfo=ZoneInfo("Europe/London"))
 
 
@@ -109,3 +111,41 @@ class TestOtherErrors:
     def test_corrupt_config_file_reads_as_no_bins(self, client, registry, core):
         (registry.get("bin_day_core").data_dir / "config.json").write_text("{not json")
         assert cell_data(client)["error"].startswith("Add your bins in Bin Day Core")
+
+
+class TestDataSchema:
+    """plugin.json's data_schema names fetch()'s fields for the canvas editor's
+    bindings, with a sample in the same shape."""
+
+    TYPES = {"num": (int, type(None)), "str": str, "arr": list}
+
+    @pytest.fixture
+    def schema(self):
+        return json.loads((REPO / "bin_day" / "plugin.json").read_text())["data_schema"]
+
+    @pytest.fixture
+    def data(self, client, save):
+        save(schedule=[bin_("Refuse"), bin_("Green", icon="leaf")])
+        return cell_data(client, cutoff="10:00")
+
+    def test_it_offers_the_next_collection_in_brief_and_the_days(self, schema):
+        assert [(f["name"], f["type"]) for f in schema["fields"]] == [
+            ("next_days_until", "num"),
+            ("next_bins", "str"),
+            ("next_date", "str"),
+            ("days", "arr"),
+        ]
+
+    def test_each_field_comes_from_fetch_with_its_type(self, schema, data):
+        for field in schema["fields"]:
+            assert isinstance(data[field["name"]], self.TYPES[field["type"]]), field["name"]
+
+    def test_the_sample_has_fetchs_shape(self, schema, data):
+        sample = schema["sample"]
+        assert {key: type(value) for key, value in sample.items()} == {
+            key: type(value) for key, value in data.items()
+        }
+        assert {frozenset(day) for day in sample["days"]} == {frozenset(data["days"][0])}
+        streams = [stream for day in sample["days"] for stream in day["streams"]]
+        real = data["days"][0]["streams"][0]
+        assert {frozenset(stream) for stream in streams} == {frozenset(real)}

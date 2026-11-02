@@ -118,6 +118,30 @@ With Small cells show set to Wheelie bins:
 
 Every Bin Day cell shows the same bins, from Bin Day Core.
 
+### On a freeform canvas
+
+On a freeform canvas dashboard, place the whole widget or one of its pieces
+on its own. Each piece takes the widget's options, such as Colours and Show
+bin names.
+
+| Piece | What it shows |
+| --- | --- |
+| Bins | The whole widget, as in a cell. |
+| Next collection | The next collection's wheelie bins, then the days left and the date. |
+| Bins only | The next collection's wheelie bins and nothing else, for a layout of your own. |
+| Countdown | The days left until the next collection, as large as its box allows, and the date. |
+| Next two days | The next two collection days, each bin a coloured square. |
+
+Canvas elements that read a widget's data, such as a code element, get these
+fields from Bin Day:
+
+| Field | What it holds |
+| --- | --- |
+| `next_days_until` | Days until the next collection: 0 for today. Empty when nothing is due in the next 7 days. |
+| `next_bins` | The bins in the next collection, such as "Refuse, Green". |
+| `next_date` | The next collection's date, such as 2026-10-07. |
+| `days` | Each collection day in the next 7 days, with its bins' names, icons and colours. |
+
 ## Waste Collection Schedule
 
 [Waste Collection Schedule](https://github.com/mampfes/hacs_waste_collection_schedule)
@@ -184,6 +208,10 @@ bin, hide **Green** with the eye button.
 Bin Day only talks to your own Home Assistant, through Tesserae's Home
 Assistant Core widget, and only when you use a calendar. It makes no other
 network requests.
+
+Tesserae checks each widget's network requests against what its
+`plugin.json` declares. Bin Day Core declares `network:*`, any address,
+because your Home Assistant can be at any address on your network.
 
 ## Development
 

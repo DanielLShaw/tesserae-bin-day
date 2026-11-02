@@ -1,4 +1,5 @@
-"""What fetch() hands the client: display-ready days plus the refresh hint."""
+"""What fetch() hands the client: display-ready days, the next collection in
+brief for canvas bindings, and the refresh hint."""
 
 from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
@@ -44,6 +45,9 @@ def test_build_payload_gives_display_streams_and_next_change():
                 ],
             }
         ],
+        "next_days_until": 1,
+        "next_date": "2026-10-07",
+        "next_bins": "Refuse",
         "next_change_at": "2026-10-07T00:00:00+01:00",
     }
 
@@ -51,8 +55,34 @@ def test_build_payload_gives_display_streams_and_next_change():
 def test_no_events_gives_no_days_and_midnight_refresh():
     assert build_payload([], TUE_8AM, CUTOFF) == {
         "days": [],
+        "next_days_until": None,
+        "next_date": "",
+        "next_bins": "",
         "next_change_at": "2026-10-07T00:00:00+01:00",
     }
+
+
+def test_the_next_collection_is_summed_up_from_its_day_alone():
+    def stream(label):
+        return {
+            "id": label.lower(),
+            "label": label,
+            "icon": "",
+            "body_colour": "",
+            "lid_colour": "",
+        }
+
+    events = [
+        (date(2026, 10, 7), stream("Refuse")),
+        (date(2026, 10, 7), stream("Green")),
+        (date(2026, 10, 12), stream("Recycling")),
+    ]
+    payload = build_payload(events, TUE_8AM, CUTOFF)
+    assert (payload["next_days_until"], payload["next_date"], payload["next_bins"]) == (
+        1,
+        "2026-10-07",
+        "Refuse, Green",
+    )
 
 
 def test_fixed_rule_payload_covers_today_to_seven_days_ahead():

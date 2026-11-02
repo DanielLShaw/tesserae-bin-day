@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 import pytest
 from playwright.sync_api import expect
 
+from conftest import REPO
+
 TUE_8AM = datetime(2026, 10, 6, 8, 0, tzinfo=ZoneInfo("Europe/London"))
 
 
@@ -48,10 +50,11 @@ def bins(app, registry, monkeypatch):
     return save
 
 
-def show(tab, w, h, style="standard", theme="light", **options):
-    """Renders the widget in a w by h cell, as a dashboard would."""
+def show(tab, w, h, style="standard", theme="light", fragment="full", **options):
+    """Renders the widget (or one of its canvas fragments) in a w by h cell,
+    as a dashboard would."""
     opts = quote(json.dumps(options))
-    look = f"&style={style}&theme={theme}"
+    look = f"&style={style}&theme={theme}&fragment={fragment}"
     tab.goto(f"{tab.base_url}/_test/render?plugin=bin_day&size=sm&w={w}&h={h}{look}&opts={opts}")
     tab.wait_for_function("window.__tesseraeComposed === true")
     tab.evaluate("document.fonts.ready")
@@ -385,3 +388,62 @@ def test_each_bin_has_its_name_above_it(tab, bins, w, h, options):
         label, drawn = box(item.locator(".bin-label")), box(item.locator(".bin"))
         assert label[3] <= drawn[1] + 1
         assert abs(label[0] - drawn[0]) <= 1, "the name doesn't start at the bin's left edge"
+
+
+# ---- canvas fragments ----------------------------------------------------------
+
+FRAGMENTS = {
+    f["id"]: (f["w"], f["h"])
+    for f in json.loads((REPO / "bin_day" / "plugin.json").read_text())["fragments"]
+    if f["id"] != "full"
+}
+# Each fragment in the box the canvas drops it at, a smaller one and a larger one.
+FRAGMENT_BOXES = [
+    pytest.param(fragment, round(w * scale), round(h * scale), id=f"{fragment}-{scale}")
+    for fragment, (w, h) in FRAGMENTS.items()
+    for scale in (1, 0.6, 2)
+]
+
+
+@pytest.mark.parametrize("fragment, w, h", FRAGMENT_BOXES)
+def test_each_fragment_fits_its_box_from_the_top_left(tab, bins, fragment, w, h):
+    bins(LIVERPOOL)
+    show(tab, w, h, fragment=fragment)
+    expect(tab.locator(f".frag-{fragment}")).to_be_visible(timeout=3000)
+    assert tab.locator(".w-title").count() == 0
+    content, cell = content_box(tab), box(tab.locator(".cell").first)
+    drawn = tab.locator(f".w-body :is({DRAWN}):visible")
+    assert drawn.count()
+    for element in drawn.all():
+        assert within(box(element), cell), element.evaluate("el => el.outerHTML.slice(0, 60)")
+    first = box(drawn.first)
+    assert abs(first[0] - content[0]) <= 2 and abs(first[1] - content[1]) <= 2
+
+
+@pytest.mark.parametrize("fragment, selector", [("bins", ".bin"), ("countdown", ".count")])
+def test_a_fragments_piece_grows_with_its_box(tab, bins, fragment, selector):
+    bins(LIVERPOOL)
+    w, h = FRAGMENTS[fragment]
+    heights = []
+    for scale in (1, 2):
+        show(tab, w * scale, h * scale, fragment=fragment)
+        expect(tab.locator(f".frag-{fragment}")).to_be_visible(timeout=3000)
+        piece = box(tab.locator(selector).first)
+        heights.append(piece[3] - piece[1])
+    assert heights[1] > heights[0] * 1.5
+
+
+@pytest.mark.parametrize(
+    "fragment, pieces",
+    [
+        ("next", [".bin-label", ".count", ".next-date"]),
+        ("bins", [".bin-label"]),
+        ("countdown", [".count", ".next-date"]),
+        ("chips", [".chip", ".day-label"]),
+    ],
+)
+def test_in_the_box_the_canvas_drops_it_at_a_fragment_shows_everything(tab, bins, fragment, pieces):
+    bins(LIVERPOOL)
+    show(tab, *FRAGMENTS[fragment], fragment=fragment)
+    for selector in pieces:
+        expect(tab.locator(selector).first).to_be_visible(timeout=3000)

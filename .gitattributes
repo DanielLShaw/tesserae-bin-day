@@ -7,3 +7,4 @@ tests/ export-ignore
 preview/ export-ignore
 .github/ export-ignore
 docs/ export-ignore
+conftest.py export-ignore

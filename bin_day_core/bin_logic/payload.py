@@ -2,9 +2,13 @@
 
     {"days": [{date, days_until, streams: [{id, label, icon, body_colour,
                                             lid_colour, icon_colour}]}],
+     "next_days_until": int or None, "next_date": ISO date or "",
+     "next_bins": "Refuse, Green" or "",
      "next_change_at": ISO 8601}
 
-``next_change_at`` tells polling panels when the frame goes stale.
+The three ``next_*`` fields sum up the first day for canvas bindings (the
+data_schema in bin_day's plugin.json); ``next_change_at`` tells polling panels
+when the frame goes stale.
 """
 
 from datetime import timedelta
@@ -20,7 +24,14 @@ def build_payload(events, now, cutoff, eink=False):
     days = collection_days(events, now, cutoff)
     for day in days:
         day["streams"] = [display_stream(stream, eink) for stream in day["streams"]]
-    return {"days": days, "next_change_at": next_change_at(now, cutoff, days).isoformat()}
+    first = days[0] if days else None
+    return {
+        "days": days,
+        "next_days_until": first["days_until"] if first else None,
+        "next_date": first["date"] if first else "",
+        "next_bins": ", ".join(stream["label"] for stream in first["streams"]) if first else "",
+        "next_change_at": next_change_at(now, cutoff, days).isoformat(),
+    }
 
 
 def fixed_rule_payload(schedule, now, cutoff, eink=False):

@@ -223,21 +223,34 @@ COLOUR_CHOICES = [("", "Automatic")] + [
     (name, name.replace("_", " ").capitalize()) for name in logic.palette.SCREEN_PALETTE
 ]
 _STYLE_CHOICES = {
-    "icon": {value for value, _ in ICON_CHOICES},
-    "body_colour": {value for value, _ in COLOUR_CHOICES},
-    "lid_colour": {value for value, _ in COLOUR_CHOICES},
+    "icon": dict(ICON_CHOICES),
+    "body_colour": dict(COLOUR_CHOICES),
+    "lid_colour": dict(COLOUR_CHOICES),
 }
 
 
-def _row_view(row, **extra):
+def _automatic(title, row, field):
+    """``(value, name)``: what ``field`` left on Automatic comes out as for a
+    bin called ``title``, given the row's other choices, and its name on the
+    page: ("blue", "Blue"), ("trash", "Refuse"), ("", "No icon")."""
+    others = {f: row.get(f) for f in _STYLE_CHOICES if f != field}
+    value = logic.resolve_stream(title, overrides=others)[field] or ""
+    return value, _STYLE_CHOICES[field].get(value, value) if value else "No icon"
+
+
+def _row_view(row, title="", **extra):
     """A saved row for the page: each style as a dropdown choice, or "custom"
-    with the typed value alongside."""
+    with the typed value alongside, and, for a bin called ``title``, what
+    Automatic would give (``<field>_auto``) and its name (``<field>_auto_name``)."""
     view = {**row, **extra}
+    title = logic.resolve.clean_text(title)
     for field, known in _STYLE_CHOICES.items():
         value = row.get(field) or ""
         custom = value not in known
         view[f"{field}_choice"] = logic.config.CUSTOM if custom else value
         view[f"{field}_custom"] = value if custom else ""
+        auto = _automatic(title, row, field) if title else ("", "")
+        view[f"{field}_auto"], view[f"{field}_auto_name"] = auto
     return view
 
 
@@ -272,7 +285,7 @@ def _mapping_views(mappings, titles):
     rows = []
     for title in titles:
         row = saved.pop(title.casefold(), None) or {**blank, "hide": False}
-        rows.append(_row_view({**row, "match": title}, discovered=True))
+        rows.append(_row_view({**row, "match": title}, title, discovered=True))
     rows += [_row_view(m, discovered=False) for m in saved.values()]
     return rows
 
@@ -324,7 +337,7 @@ def _render_admin(config, errors=(), posted=False):
         calendar_options=options,
         ha_problem=ha_problem,
         titles_status=status,
-        schedule_rows=[_row_view(row) for row in config["schedule"]],
+        schedule_rows=[_row_view(row, row.get("label")) for row in config["schedule"]],
         mapping_lists=lists,
         blank_row=_row_view(dict.fromkeys(("label", *_STYLE_CHOICES), ""), hide=False),
         **_style_choices(),

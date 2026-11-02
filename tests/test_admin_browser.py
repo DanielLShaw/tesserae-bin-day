@@ -103,6 +103,20 @@ def test_custom_icon_reveals_a_name_field_with_a_live_preview(tab, core):
     )
 
 
+def test_the_icon_dropdown_shows_the_icon_chosen(tab, core):
+    core.save(schedule=[{"label": "Recycling", "first_date": "2026-09-01", "every_weeks": 1}])
+    open_admin(tab)
+    row = bin_rows(tab).nth(0)
+    shown = row.locator(".bd-icon-preview")
+    assert shown.get_attribute("class") == "ph-bold ph-recycle bd-icon-preview"
+    row.locator('select[aria-label="Icon"]').select_option("leaf")
+    assert shown.get_attribute("class") == "ph-bold ph-leaf bd-icon-preview"
+    row.locator('select[aria-label="Icon"]').select_option("")
+    assert shown.get_attribute("class") == "ph-bold ph-recycle bd-icon-preview"
+    row.locator('select[aria-label="Icon"]').select_option("custom")
+    assert shown.get_attribute("class") == "ph-bold ph-question bd-icon-preview"
+
+
 def test_custom_colour_reveals_a_picker_kept_in_step_with_its_hex(tab, core):
     core.save(schedule=[{"label": "Bulky", "first_date": "2026-09-01", "every_weeks": 1}])
     open_admin(tab)

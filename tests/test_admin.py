@@ -97,11 +97,31 @@ def value(html, name):
     return re.search(r'value="([^"]*)"', tag(html, name))[1]
 
 
-def selected(html, name):
+def select(html, name):
     block = re.search(rf'<select[^>]*name="{re.escape(name)}".*?</select>', html, re.S)
     assert block, f"no select {name}"
-    option = re.search(r'<option value="([^"]*)" selected', block[0])
+    return block[0]
+
+
+def selected(html, name):
+    option = re.search(r'<option value="([^"]*)" selected', select(html, name))
     return option[1] if option else ""
+
+
+def automatic(html, name):
+    """The text of select ``name``'s Automatic option."""
+    return re.search(r'<option value=""[^>]*>([^<]*)</option>', select(html, name))[1]
+
+
+def icon_shown(html, name):
+    """The icon shown inside icon select ``name``, or "" for none."""
+    match = re.search(
+        rf'<i class="(?:ph-bold ph-([a-z0-9-]+) )?bd-icon-preview"[^>]*></i>\s*'
+        rf'<select[^>]*name="{re.escape(name)}"',
+        html,
+    )
+    assert match, f"no icon shown in {name}"
+    return match[1] or ""
 
 
 def radio_checked(html, name, val):
@@ -235,6 +255,35 @@ class TestSchedule:
         assert re.search(r'<template[^>]*data-row-template="schedule"', html)
         assert 'name="schedule-__N__-label"' in html
 
+    def test_automatic_says_what_each_bin_comes_out_as(self, client, stored):
+        stored(schedule=[bin_("Recycling"), bin_("Bulky", icon="leaf", body_colour="#7a3e9d")])
+        html = page(client)
+        assert automatic(html, "schedule-0-icon") == "Recycling (auto)"
+        assert automatic(html, "schedule-0-body_colour") == "Blue (auto)"
+        assert automatic(html, "schedule-0-lid_colour") == "Blue (auto)"
+        # The row's other choices count: a Garden icon makes the bin green,
+        # and an automatic lid matches the bin.
+        assert automatic(html, "schedule-1-body_colour") == "Green (auto)"
+        assert automatic(html, "schedule-1-lid_colour") == "#7a3e9d (auto)"
+
+    def test_a_new_bin_says_plain_automatic(self, client, stored):
+        html = page(client)
+        assert automatic(html, "schedule-__N__-body_colour") == "Automatic"
+
+    def test_each_icon_dropdown_shows_its_icon(self, client, stored):
+        stored(
+            schedule=[
+                bin_("Recycling"),
+                bin_("Refuse", icon="leaf"),
+                bin_("Bulky", icon="armchair"),
+            ]
+        )
+        html = page(client)
+        assert icon_shown(html, "schedule-0-icon") == "recycle"
+        assert icon_shown(html, "schedule-1-icon") == "leaf"
+        assert icon_shown(html, "schedule-2-icon") == "armchair"
+        assert icon_shown(html, "schedule-__N__-icon") == ""
+
 
 COTTAGE = "calendar.cottage"
 
@@ -266,6 +315,40 @@ class TestCalendarBins:
         for n, row in enumerate(rows):
             assert f'<input type="hidden" name="mappings-{n}-match"' in row
             assert "data-remove-row" not in row
+
+    def test_automatic_says_what_each_bin_comes_out_as(self, client, stored, liverpool):
+        stored(source="calendar", calendar=LIVERPOOL)
+        html = page(client)
+        assert automatic(html, "mappings-0-icon") == "Refuse (auto)"
+        assert automatic(html, "mappings-0-body_colour") == "Black (auto)"
+        assert automatic(html, "mappings-0-lid_colour") == "Black (auto)"
+        assert automatic(html, "mappings-1-icon") == "No icon (auto)"
+        assert automatic(html, "mappings-1-body_colour") == "Green (auto)"
+        assert automatic(html, "mappings-2-body_colour") == "Blue (auto)"
+
+    def test_automatic_follows_the_rows_other_choices(self, client, stored, liverpool):
+        stored(
+            source="calendar",
+            calendar=LIVERPOOL,
+            mappings={LIVERPOOL: [mapping("Refuse", body_colour="purple")]},
+        )
+        assert automatic(page(client), "mappings-0-lid_colour") == "Purple (auto)"
+
+    def test_each_icon_dropdown_shows_the_icon_auto_gives(self, client, stored, liverpool):
+        stored(source="calendar", calendar=LIVERPOOL)
+        html = page(client)
+        assert [icon_shown(html, f"mappings-{n}-icon") for n in range(3)] == [
+            "trash",
+            "",  # "Green" is only a colour: no icon
+            "recycle",
+        ]
+
+    def test_a_name_typed_in_says_plain_automatic(self, client, stored, liverpool):
+        # "Blue" can match several bins' names, so there's no one colour to name.
+        stored(source="calendar", calendar=LIVERPOOL, mappings={LIVERPOOL: [mapping("Blue")]})
+        html = page(client)
+        assert value(html, "mappings-3-match") == "Blue"
+        assert automatic(html, "mappings-3-body_colour") == "Automatic"
 
     def test_saved_mappings_fill_in_their_titles_row(self, client, stored, liverpool):
         stored(
@@ -336,6 +419,14 @@ class TestRowsEndpoint:
         assert value(html, "mappings-0-icon_custom") == "flower"
         assert "Bulky" not in html
         assert data["status"] == ""
+
+    def test_a_calendars_rows_say_what_automatic_gives_without_a_save(
+        self, client, core, liverpool
+    ):
+        liverpool.add_calendar(COTTAGE, "Cottage", [wcs_event("Garden waste", "2026-10-09")])
+        html = rows_for(client, COTTAGE)["html"]
+        assert automatic(html, "mappings-0-icon") == "Garden (auto)"
+        assert automatic(html, "mappings-0-body_colour") == "Green (auto)"
 
     def test_titles_are_looked_for_8_weeks_ahead(self, client, core, liverpool):
         rows_for(client, LIVERPOOL)

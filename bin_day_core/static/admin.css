@@ -157,10 +157,23 @@
   width: 38px;
 }
 
+/* An icon dropdown shows its icon inside, before the choice's name. */
+.bd-select {
+  position: relative;
+}
+
 .bd-icon-preview {
-  flex: 0 0 auto;
-  font-size: 20px;
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  font-size: 18px;
   color: var(--t-fg);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.bd-style .bd-icon-preview + select {
+  padding-left: 34px;
 }
 
 .bd-actions {

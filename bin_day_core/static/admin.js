@@ -100,6 +100,19 @@
     showCalendar(calendarSelect.value);
   };
 
+  // The icon inside an icon dropdown: the one chosen, the one Automatic
+  // gives (none for a bin with no icon), or the custom name typed in.
+  const showIcon = (field) => {
+    const preview = field.querySelector(".bd-icon-preview");
+    if (!preview) return;
+    const select = field.querySelector("[data-custom-select]");
+    let name = select.value || (select.selectedOptions[0].dataset.auto ?? "");
+    if (name === "custom") {
+      name = field.querySelector("[data-icon-input]").value.trim().replace(/^ph-/, "") || "question";
+    }
+    preview.className = name ? `ph-bold ph-${name} bd-icon-preview` : "bd-icon-preview";
+  };
+
   const toggleHide = (button) => {
     const row = button.closest("[data-row]");
     const input = row.querySelector("[data-hide-input]");
@@ -115,19 +128,17 @@
     if (target.matches("[data-source-radio]")) showSource(target.value);
     if (target.matches("[data-calendar-select]")) chooseCalendar(target.value);
     if (target.matches("[data-custom-select]")) {
-      const custom = target.closest("[data-custom-field]").querySelector(".bd-custom");
+      const field = target.closest("[data-custom-field]");
+      const custom = field.querySelector(".bd-custom");
       custom.hidden = target.value !== "custom";
       if (!custom.hidden) custom.querySelector("input[type=text]").focus();
+      showIcon(field);
     }
   });
 
   form.addEventListener("input", (event) => {
     const target = event.target;
-    if (target.matches("[data-icon-input]")) {
-      const name = target.value.trim().replace(/^ph-/, "") || "question";
-      target.parentElement.querySelector(".bd-icon-preview").className =
-        `ph-bold ph-${name} bd-icon-preview`;
-    }
+    if (target.matches("[data-icon-input]")) showIcon(target.closest("[data-custom-field]"));
     if (target.matches("[data-colour-picker]")) {
       target.parentElement.querySelector("[data-colour-hex]").value = target.value;
     }

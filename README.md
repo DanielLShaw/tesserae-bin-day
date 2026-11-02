@@ -77,7 +77,8 @@ where your bins come from, then save.
 2. In Bin Day Core, choose **Home Assistant calendar**, then your bins
    calendar.
 3. Each bin in the calendar's next 8 weeks gets a row. Leave its icon and
-   colours on Automatic, or set them. The eye button hides a bin from the
+   colours on auto, or set them. Auto names what Bin Day makes of the bin's
+   name, such as "Blue (auto)". The eye button hides a bin from the
    widget. **Add a name** sets up a bin that hasn't appeared in the calendar
    yet. Each calendar keeps its own settings, so switching calendar loses
    nothing.
